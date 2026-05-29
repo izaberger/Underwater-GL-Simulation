@@ -1,0 +1,107 @@
+# Visual Studio / build output
+.vs/
+Debug/
+Release/
+x64/
+x86/
+[Bb]in/
+[Oo]bj/
+*.pdb
+*.idb
+*.ilk
+*.tlog
+*.lastbuildstate
+*.recipe
+*.log
+*.user
+*.suo
+*.VC.db
+*.opendb
+ipch/
+projekt/Debug/
+projekt/imgui.ini
+
+# Laboratory exercise folders are kept locally, but are not needed by this repo.
+cw 1/
+cw 2/
+cw 3/
+cw 4/
+cw 5/
+cw 6/
+cw 7/
+
+# Download archives / source-package clutter
+*.zip
+*.rar
+*.7z
+*.blend
+
+# Runtime DLLs: keep only the ones copied by the project post-build step.
+*.dll
+!glew32.dll
+!freeglut.dll
+!assimp-vc141-mtd.dll
+!zlibd.dll
+
+# Dependencies: ignore vendor package noise, then re-include the files needed to build.
+dependencies/*
+
+!dependencies/assimp/
+dependencies/assimp/*
+!dependencies/assimp/include/
+!dependencies/assimp/include/**
+!dependencies/assimp/assimp-vc141-mtd.lib
+!dependencies/assimp/zlibd.lib
+
+!dependencies/freeglut/
+dependencies/freeglut/*
+!dependencies/freeglut/include/
+!dependencies/freeglut/include/**
+!dependencies/freeglut/lib/
+dependencies/freeglut/lib/*
+!dependencies/freeglut/lib/freeglut.lib
+
+!dependencies/glew-2.0.0/
+dependencies/glew-2.0.0/*
+!dependencies/glew-2.0.0/include/
+!dependencies/glew-2.0.0/include/**
+!dependencies/glew-2.0.0/lib/
+dependencies/glew-2.0.0/lib/*
+!dependencies/glew-2.0.0/lib/Release/
+dependencies/glew-2.0.0/lib/Release/*
+!dependencies/glew-2.0.0/lib/Release/Win32/
+dependencies/glew-2.0.0/lib/Release/Win32/*
+!dependencies/glew-2.0.0/lib/Release/Win32/glew32.lib
+
+!dependencies/glfw-3.3.8.bin.WIN32/
+dependencies/glfw-3.3.8.bin.WIN32/*
+!dependencies/glfw-3.3.8.bin.WIN32/include/
+!dependencies/glfw-3.3.8.bin.WIN32/include/**
+!dependencies/glfw-3.3.8.bin.WIN32/lib-vc2019/
+dependencies/glfw-3.3.8.bin.WIN32/lib-vc2019/*
+!dependencies/glfw-3.3.8.bin.WIN32/lib-vc2019/glfw3.lib
+!dependencies/glfw-3.3.8.bin.WIN32/lib-vc2019/glfw3dll.lib
+!dependencies/glfw-3.3.8.bin.WIN32/lib-vc2019/glfw3.dll
+
+!dependencies/glm/
+!dependencies/glm/**
+
+!dependencies/imgui/
+dependencies/imgui/*
+!dependencies/imgui/imconfig.h
+!dependencies/imgui/imgui.cpp
+!dependencies/imgui/imgui.h
+!dependencies/imgui/imgui_draw.cpp
+!dependencies/imgui/imgui_internal.h
+!dependencies/imgui/imgui_tables.cpp
+!dependencies/imgui/imgui_widgets.cpp
+!dependencies/imgui/imstb_rectpack.h
+!dependencies/imgui/imstb_textedit.h
+!dependencies/imgui/imstb_truetype.h
+!dependencies/imgui/backends/
+dependencies/imgui/backends/*
+!dependencies/imgui/backends/imgui_impl_glfw.cpp
+!dependencies/imgui/backends/imgui_impl_glfw.h
+!dependencies/imgui/backends/imgui_impl_opengl3.cpp
+!dependencies/imgui/backends/imgui_impl_opengl3.h
+!dependencies/imgui/backends/imgui_impl_opengl3_loader.h

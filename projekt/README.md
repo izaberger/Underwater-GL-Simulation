@@ -1,12 +1,12 @@
 # GRK projekt - interaktywny swiat podwodny
 
-Folder `projekt` jest szkieletem finalnej sceny. Aktualny stan testuje import assetow: renderowana jest tylko jaskinia z `project_assets/cave`, kamera stoi w jej srodku, a pozostale elementy sceny sa chwilowo wylaczone.
+Folder `projekt` jest szkieletem finalnej sceny. Aktualny stan testuje import assetow: renderowana jest jaskinia z `project_assets/cave`, testowy model krysztalow z `project_assets/cristal`, roslinnosc z `project_assets/plant_1` oraz wodorosty z `project_assets/seaweed_grass` i `project_assets/seaweed_pink`. Kamera stoi w srodku jaskini, a pozostale elementy sceny sa chwilowo wylaczone.
 
 ## Wybrane metody
 
 - A13 Environment cubemap reflections/refractions: kod `shaders/refract.*` zostaje w projekcie, ale banka jest chwilowo wylaczona z widoku podczas testu modelu jaskini.
 - B05 Seaweed/anemone waving in vertex shader: kod i shadery zostaja w projekcie, ale renderowanie roslinnosci jest chwilowo wylaczone do czasu dodania assetow.
-- Bloom: `shaders/blur.*`, `shaders/bloom_final.*`, pipeline zostaje aktywny dla banki i przyszlych emisyjnych assetow.
+- Bloom: `shaders/blur.*`, `shaders/bloom_final.*`, pipeline zostaje aktywny dla krysztalow, banki i przyszlych emisyjnych assetow.
 
 ## Metody obowiazkowe w szkielecie
 
@@ -38,6 +38,6 @@ Folder `projekt` jest szkieletem finalnej sceny. Aktualny stan testuje import as
 ## Co wymienic pozniej
 
 - Zastapic tymczasowa cubemape z `project_assets/skybox` prawdziwa podwodna cubemapa.
-- Dodac docelowe modele z `project_assets`: jaskinia, krysztaly, koralowce, roslinnosc, skrzynia.
+- Dodac kolejne docelowe modele z `project_assets`: dodatkowe koralowce, skrzynia i dekoracje sceny.
 - Dopracowac materialy PBR: osobne roughness/metallic/ao mapy.
 - Rozszerzyc README o podzial pracy trzech osob i screeny do demo.

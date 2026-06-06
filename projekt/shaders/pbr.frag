@@ -6,6 +6,7 @@ layout(location = 1) out vec4 BrightColor;
 uniform sampler2D colorTexture;
 uniform sampler2D normalMap;
 uniform sampler2D shadowMap;
+uniform sampler2D opacityTexture;
 
 uniform vec3 cameraPos;
 uniform vec3 lightPos;
@@ -24,6 +25,9 @@ uniform float ambientStrength;
 uniform float fogDensity;
 uniform float fogMax;
 uniform bool enableShadows;
+uniform bool flipTextureY;
+uniform bool useOpacityTexture;
+uniform float alphaCutoff;
 
 in vec3 worldPos;
 in vec2 texCoord;
@@ -86,8 +90,14 @@ float shadowCalculation(vec4 fragPosLight, vec3 N, vec3 L)
 
 void main()
 {
-	vec2 fixedTexCoord = vec2(texCoord.x, 1.0 - texCoord.y);
+	vec2 fixedTexCoord = texCoord;
+	if (flipTextureY)
+		fixedTexCoord.y = 1.0 - fixedTexCoord.y;
+
 	vec2 scaledTexCoord = fixedTexCoord * textureScale;
+	if (useOpacityTexture && texture(opacityTexture, scaledTexCoord).r < alphaCutoff)
+		discard;
+
 	vec3 albedo = pow(texture(colorTexture, scaledTexCoord).rgb * baseColor, vec3(2.2));
 
 	vec3 tangentNormal = texture(normalMap, scaledTexCoord).rgb;

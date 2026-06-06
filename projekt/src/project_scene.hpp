@@ -20,6 +20,7 @@
 #include "Shader_Loader.h"
 #include "Render_Utils.h"
 #include "Texture.h"
+#include "SOIL/SOIL.h"
 
 #include "imgui.h"
 
@@ -29,6 +30,8 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cfloat>
+#include <cstdlib>
 #include <iostream>
 #include <string>
 #include <vector>
@@ -59,6 +62,10 @@ Core::RenderContext sphereContext;
 Core::RenderContext cubeContext;
 Core::RenderContext rockContext;
 std::vector<Core::RenderContext> caveContexts;
+std::vector<Core::RenderContext> crystalContexts;
+std::vector<Core::RenderContext> plantContexts;
+std::vector<Core::RenderContext> seaweedGrassContexts;
+std::vector<Core::RenderContext> seaweedPinkContexts;
 
 GLuint skyboxVAO = 0;
 GLuint skyboxVBO = 0;
@@ -106,6 +113,7 @@ struct Material
 {
 	GLuint albedo = 0;
 	GLuint normal = 0;
+	GLuint opacity = 0;
 	glm::vec3 baseColor = glm::vec3(1.0f);
 	float metallic = 0.0f;
 	float roughness = 0.5f;
@@ -115,6 +123,9 @@ struct Material
 	float ambientStrength = 1.0f;
 	float fogDensity = 0.075f;
 	float fogMax = 0.78f;
+	bool flipTextureY = true;
+	bool useOpacityTexture = false;
+	float alphaCutoff = 0.35f;
 };
 
 Material makeMaterial(GLuint albedo, GLuint normal, glm::vec3 baseColor, float metallic, float roughness, float ao)
@@ -138,6 +149,10 @@ namespace texture
 	GLuint sandAlbedo = 0;
 	GLuint flatNormal = 0;
 	GLuint crystalAlbedo = 0;
+	GLuint plantAlbedo = 0;
+	GLuint seaweedGrassAlbedo = 0;
+	GLuint seaweedGrassOpacity = 0;
+	GLuint seaweedPinkAlbedo = 0;
 	GLuint caveAlbedo = 0;
 	GLuint caveNormal = 0;
 }
@@ -146,6 +161,9 @@ Material rockMaterial;
 Material rustMaterial;
 Material sandMaterial;
 Material crystalMaterial;
+Material plantMaterial;
+Material seaweedGrassMaterial;
+Material seaweedPinkMaterial;
 Material caveMaterial;
 
 glm::vec3 lightPos = glm::vec3(-2.5f, 4.6f, -2.0f);
@@ -287,6 +305,69 @@ glm::mat4 caveModelMatrix()
 	return model;
 }
 
+glm::mat4 importedModelMatrix(glm::vec3 position, glm::vec3 importedCenter, glm::vec3 rotationDeg, float scale)
+{
+	glm::mat4 model = glm::translate(glm::mat4(1.0f), position);
+	model = glm::rotate(model, glm::radians(rotationDeg.x), glm::vec3(1.0f, 0.0f, 0.0f));
+	model = glm::rotate(model, glm::radians(rotationDeg.y), glm::vec3(0.0f, 1.0f, 0.0f));
+	model = glm::rotate(model, glm::radians(rotationDeg.z), glm::vec3(0.0f, 0.0f, 1.0f));
+	model = glm::scale(model, glm::vec3(scale));
+	model = glm::translate(model, -importedCenter);
+	return model;
+}
+
+glm::mat4 crystalModelMatrix()
+{
+	const glm::vec3 importedCenter = glm::vec3(-1.524054f, 2.864295f, 0.508725f);
+	return importedModelMatrix(
+		glm::vec3(1.65f, -0.38f, -2.15f),
+		importedCenter,
+		glm::vec3(0.0f, -18.0f, 0.0f),
+		0.14f
+	);
+}
+
+glm::mat4 plantModelMatrix()
+{
+	const glm::vec3 importedCenter = glm::vec3(0.014267f, 0.182588f, 0.009282f);
+	return importedModelMatrix(
+		glm::vec3(-1.45f, -0.62f, -2.05f),
+		importedCenter,
+		glm::vec3(0.0f, 24.0f, 0.0f),
+		0.65f
+	);
+}
+
+glm::mat4 seaweedGrassModelMatrix()
+{
+	const glm::vec3 importedCenter = glm::vec3(2.192963f, 48.910385f, 3.925060f);
+	return importedModelMatrix(
+		glm::vec3(0.20f, 0.00f, -2.85f),
+		importedCenter,
+		glm::vec3(0.0f, -12.0f, 0.0f),
+		0.012f
+	);
+}
+
+glm::mat4 seaweedPinkModelMatrix()
+{
+	return importedModelMatrix(
+		glm::vec3(2.25f, -0.10f, -1.35f),
+		glm::vec3(0.0f),
+		glm::vec3(0.0f, -30.0f, 0.0f),
+		0.52f
+	);
+}
+
+glm::mat4 bubbleModelMatrix()
+{
+	return makeModel(
+		glm::vec3(-0.15f, 0.68f, -1.55f),
+		glm::vec3(0.0f),
+		glm::vec3(0.46f)
+	);
+}
+
 glm::mat4 lightSpaceMatrix()
 {
 	glm::mat4 lightProjection = glm::ortho(-11.0f, 11.0f, -8.0f, 8.0f, 1.0f, 24.0f);
@@ -305,6 +386,19 @@ GLuint createSolidTexture(unsigned char r, unsigned char g, unsigned char b)
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+	return id;
+}
+
+GLuint createTextureFromRGBA(unsigned char* pixels, int width, int height)
+{
+	GLuint id;
+	glGenTextures(1, &id);
+	glBindTexture(GL_TEXTURE_2D, id);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, pixels);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
 	return id;
 }
 
@@ -346,6 +440,232 @@ void loadModelToContexts(std::string path, std::vector<Core::RenderContext>& con
 	contexts.resize(scene->mNumMeshes);
 	for (unsigned int i = 0; i < scene->mNumMeshes; i++)
 		contexts[i].initFromAssimpMesh(scene->mMeshes[i]);
+}
+
+GLuint loadEmbeddedAlbedoTexture(std::string modelPath, glm::vec3 fallbackColor)
+{
+	Assimp::Importer import;
+	const aiScene* scene = import.ReadFile(modelPath, aiProcess_Triangulate);
+	if (!scene || scene->mNumMaterials == 0 || scene->mNumTextures == 0)
+	{
+		std::cout << "No embedded texture found in " << modelPath << std::endl;
+		return createSolidTexture(
+			(unsigned char)(fallbackColor.r * 255.0f),
+			(unsigned char)(fallbackColor.g * 255.0f),
+			(unsigned char)(fallbackColor.b * 255.0f)
+		);
+	}
+
+	aiTextureType types[] = { aiTextureType_BASE_COLOR, aiTextureType_DIFFUSE, aiTextureType_EMISSIVE };
+	for (unsigned int m = 0; m < scene->mNumMaterials; m++)
+	{
+		for (unsigned int t = 0; t < 3; t++)
+		{
+			aiString texturePath;
+			if (scene->mMaterials[m]->GetTexture(types[t], 0, &texturePath) != AI_SUCCESS)
+				continue;
+
+			std::string ref = texturePath.C_Str();
+			if (ref.empty() || ref[0] != '*')
+				continue;
+
+			int textureIndex = std::atoi(ref.c_str() + 1);
+			if (textureIndex < 0 || textureIndex >= int(scene->mNumTextures))
+				continue;
+
+			aiTexture* texture = scene->mTextures[textureIndex];
+			if (texture->mHeight == 0)
+			{
+				int width = 0;
+				int height = 0;
+				unsigned char* image = SOIL_load_image_from_memory(
+					reinterpret_cast<unsigned char*>(texture->pcData),
+					texture->mWidth,
+					&width,
+					&height,
+					0,
+					SOIL_LOAD_RGBA
+				);
+				if (image)
+				{
+					GLuint id = createTextureFromRGBA(image, width, height);
+					SOIL_free_image_data(image);
+					return id;
+				}
+			}
+			else
+			{
+				std::vector<unsigned char> pixels(texture->mWidth * texture->mHeight * 4);
+				for (unsigned int i = 0; i < texture->mWidth * texture->mHeight; i++)
+				{
+					pixels[i * 4 + 0] = texture->pcData[i].r;
+					pixels[i * 4 + 1] = texture->pcData[i].g;
+					pixels[i * 4 + 2] = texture->pcData[i].b;
+					pixels[i * 4 + 3] = texture->pcData[i].a;
+				}
+				return createTextureFromRGBA(pixels.data(), texture->mWidth, texture->mHeight);
+			}
+		}
+	}
+
+	std::cout << "Embedded albedo texture not found in " << modelPath << std::endl;
+	return createSolidTexture(
+		(unsigned char)(fallbackColor.r * 255.0f),
+		(unsigned char)(fallbackColor.g * 255.0f),
+		(unsigned char)(fallbackColor.b * 255.0f)
+	);
+}
+
+bool isLargeCrystalBaseMesh(aiMesh* mesh)
+{
+	std::string meshName = mesh->mName.C_Str();
+	if (meshName.find("Plane") != std::string::npos)
+		return true;
+
+	glm::vec3 minPoint(FLT_MAX);
+	glm::vec3 maxPoint(-FLT_MAX);
+	for (unsigned int i = 0; i < mesh->mNumVertices; i++)
+	{
+		glm::vec3 p(mesh->mVertices[i].x, mesh->mVertices[i].y, mesh->mVertices[i].z);
+		minPoint = glm::min(minPoint, p);
+		maxPoint = glm::max(maxPoint, p);
+	}
+
+	glm::vec3 extent = maxPoint - minPoint;
+	return extent.x > 20.0f && extent.z > 20.0f && extent.y < 5.0f;
+}
+
+void loadCrystalModelToContexts(std::string path, std::vector<Core::RenderContext>& contexts)
+{
+	Assimp::Importer import;
+	const aiScene* scene = import.ReadFile(path, aiProcess_Triangulate | aiProcess_GenSmoothNormals | aiProcess_CalcTangentSpace);
+
+	if (!scene || scene->mFlags & AI_SCENE_FLAGS_INCOMPLETE || !scene->mRootNode || scene->mNumMeshes == 0)
+	{
+		std::cout << "ERROR::ASSIMP:: " << path << " " << import.GetErrorString() << std::endl;
+		return;
+	}
+
+	contexts.clear();
+	for (unsigned int i = 0; i < scene->mNumMeshes; i++)
+	{
+		if (isLargeCrystalBaseMesh(scene->mMeshes[i]))
+			continue;
+
+		Core::RenderContext context;
+		context.initFromAssimpMesh(scene->mMeshes[i]);
+		contexts.push_back(context);
+	}
+}
+
+void initSphereContext(Core::RenderContext& context)
+{
+	const unsigned int rings = 32;
+	const unsigned int segments = 64;
+
+	std::vector<float> positions;
+	std::vector<float> normals;
+	std::vector<float> texCoords;
+	std::vector<float> tangents;
+	std::vector<float> bitangents;
+	std::vector<unsigned int> indices;
+
+	for (unsigned int y = 0; y <= rings; y++)
+	{
+		float v = float(y) / float(rings);
+		float phi = v * glm::pi<float>();
+
+		for (unsigned int x = 0; x <= segments; x++)
+		{
+			float u = float(x) / float(segments);
+			float theta = u * glm::two_pi<float>();
+
+			float sinPhi = std::sin(phi);
+			float sinTheta = std::sin(theta);
+			float cosTheta = std::cos(theta);
+			glm::vec3 normal = glm::normalize(glm::vec3(
+				sinPhi * cosTheta,
+				std::cos(phi),
+				sinPhi * sinTheta
+			));
+			glm::vec3 tangent = glm::normalize(glm::vec3(-sinTheta, 0.0f, cosTheta));
+			glm::vec3 bitangent = glm::normalize(glm::cross(normal, tangent));
+
+			positions.push_back(normal.x);
+			positions.push_back(normal.y);
+			positions.push_back(normal.z);
+			normals.push_back(normal.x);
+			normals.push_back(normal.y);
+			normals.push_back(normal.z);
+			texCoords.push_back(u);
+			texCoords.push_back(v);
+			tangents.push_back(tangent.x);
+			tangents.push_back(tangent.y);
+			tangents.push_back(tangent.z);
+			bitangents.push_back(bitangent.x);
+			bitangents.push_back(bitangent.y);
+			bitangents.push_back(bitangent.z);
+		}
+	}
+
+	for (unsigned int y = 0; y < rings; y++)
+	{
+		for (unsigned int x = 0; x < segments; x++)
+		{
+			unsigned int i0 = y * (segments + 1) + x;
+			unsigned int i1 = i0 + 1;
+			unsigned int i2 = i0 + segments + 1;
+			unsigned int i3 = i2 + 1;
+
+			indices.push_back(i0);
+			indices.push_back(i2);
+			indices.push_back(i1);
+			indices.push_back(i1);
+			indices.push_back(i2);
+			indices.push_back(i3);
+		}
+	}
+
+	unsigned int vertexDataBufferSize = unsigned int(sizeof(float) * positions.size());
+	unsigned int vertexNormalBufferSize = unsigned int(sizeof(float) * normals.size());
+	unsigned int vertexTexBufferSize = unsigned int(sizeof(float) * texCoords.size());
+	unsigned int vertexTangentBufferSize = unsigned int(sizeof(float) * tangents.size());
+	unsigned int vertexBiTangentBufferSize = unsigned int(sizeof(float) * bitangents.size());
+	unsigned int vertexElementBufferSize = unsigned int(sizeof(unsigned int) * indices.size());
+
+	context.size = int(indices.size());
+	glGenVertexArrays(1, &context.vertexArray);
+	glBindVertexArray(context.vertexArray);
+
+	glGenBuffers(1, &context.vertexIndexBuffer);
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, context.vertexIndexBuffer);
+	glBufferData(GL_ELEMENT_ARRAY_BUFFER, vertexElementBufferSize, indices.data(), GL_STATIC_DRAW);
+
+	glGenBuffers(1, &context.vertexBuffer);
+	glBindBuffer(GL_ARRAY_BUFFER, context.vertexBuffer);
+	glBufferData(
+		GL_ARRAY_BUFFER,
+		vertexDataBufferSize + vertexNormalBufferSize + vertexTexBufferSize + vertexTangentBufferSize + vertexBiTangentBufferSize,
+		NULL,
+		GL_STATIC_DRAW
+	);
+	glBufferSubData(GL_ARRAY_BUFFER, 0, vertexDataBufferSize, positions.data());
+	glBufferSubData(GL_ARRAY_BUFFER, vertexDataBufferSize, vertexNormalBufferSize, normals.data());
+	glBufferSubData(GL_ARRAY_BUFFER, vertexDataBufferSize + vertexNormalBufferSize, vertexTexBufferSize, texCoords.data());
+	glBufferSubData(GL_ARRAY_BUFFER, vertexDataBufferSize + vertexNormalBufferSize + vertexTexBufferSize, vertexTangentBufferSize, tangents.data());
+	glBufferSubData(GL_ARRAY_BUFFER, vertexDataBufferSize + vertexNormalBufferSize + vertexTexBufferSize + vertexTangentBufferSize, vertexBiTangentBufferSize, bitangents.data());
+
+	glEnableVertexAttribArray(0);
+	glEnableVertexAttribArray(1);
+	glEnableVertexAttribArray(2);
+	glEnableVertexAttribArray(3);
+	glEnableVertexAttribArray(4);
+	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, (void*)0);
+	glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 0, (void*)(vertexDataBufferSize));
+	glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 0, (void*)(vertexDataBufferSize + vertexNormalBufferSize));
+	glVertexAttribPointer(3, 3, GL_FLOAT, GL_FALSE, 0, (void*)(vertexDataBufferSize + vertexNormalBufferSize + vertexTexBufferSize));
+	glVertexAttribPointer(4, 3, GL_FLOAT, GL_FALSE, 0, (void*)(vertexDataBufferSize + vertexNormalBufferSize + vertexTexBufferSize + vertexTangentBufferSize));
+	glBindVertexArray(0);
 }
 
 void initSkybox()
@@ -650,6 +970,9 @@ void drawPBR(Core::RenderContext& context, glm::mat4 modelMatrix, const Material
 	glUniform1f(glGetUniformLocation(programPBR, "ambientStrength"), mat.ambientStrength);
 	glUniform1f(glGetUniformLocation(programPBR, "fogDensity"), mat.fogDensity);
 	glUniform1f(glGetUniformLocation(programPBR, "fogMax"), mat.fogMax);
+	glUniform1i(glGetUniformLocation(programPBR, "flipTextureY"), mat.flipTextureY ? 1 : 0);
+	glUniform1i(glGetUniformLocation(programPBR, "useOpacityTexture"), mat.useOpacityTexture ? 1 : 0);
+	glUniform1f(glGetUniformLocation(programPBR, "alphaCutoff"), mat.alphaCutoff);
 	glUniform3fv(glGetUniformLocation(programPBR, "emissiveColor"), 1, (float*)&emissiveColor);
 	glUniform1f(glGetUniformLocation(programPBR, "emissiveStrength"), emissiveStrength);
 	glUniform3fv(glGetUniformLocation(programPBR, "fogColor"), 1, (float*)&waterFogColor);
@@ -660,6 +983,9 @@ void drawPBR(Core::RenderContext& context, glm::mat4 modelMatrix, const Material
 	glUniform1i(glGetUniformLocation(programPBR, "shadowMap"), 2);
 	glActiveTexture(GL_TEXTURE2);
 	glBindTexture(GL_TEXTURE_2D, depthMap);
+	glUniform1i(glGetUniformLocation(programPBR, "opacityTexture"), 3);
+	glActiveTexture(GL_TEXTURE3);
+	glBindTexture(GL_TEXTURE_2D, mat.opacity);
 
 	Core::DrawContext(context);
 }
@@ -950,6 +1276,24 @@ void renderSceneToHDR(GLFWwindow* window)
 	{
 		drawPBR(caveContexts[i], caveModelMatrix(), caveMaterial, glm::vec3(0.0f), 0.0f);
 	}
+	for (unsigned int i = 0; i < crystalContexts.size(); i++)
+	{
+		drawPBR(crystalContexts[i], crystalModelMatrix(), crystalMaterial, glm::vec3(1.0f, 0.16f, 0.82f), 1.45f);
+	}
+	for (unsigned int i = 0; i < plantContexts.size(); i++)
+	{
+		drawPBR(plantContexts[i], plantModelMatrix(), plantMaterial, glm::vec3(0.0f), 0.0f);
+	}
+	for (unsigned int i = 0; i < seaweedGrassContexts.size(); i++)
+	{
+		drawPBR(seaweedGrassContexts[i], seaweedGrassModelMatrix(), seaweedGrassMaterial, glm::vec3(0.0f), 0.0f);
+	}
+	for (unsigned int i = 0; i < seaweedPinkContexts.size(); i++)
+	{
+		drawPBR(seaweedPinkContexts[i], seaweedPinkModelMatrix(), seaweedPinkMaterial, glm::vec3(0.22f, 0.02f, 0.18f), 0.22f);
+	}
+	if (enableBubble)
+		drawRefractiveBubble(bubbleModelMatrix());
 
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
 }
@@ -1120,6 +1464,10 @@ void init(GLFWwindow* window)
 	programBloomCombine = shaderLoader.CreateProgram("shaders/bloom_final.vert", "shaders/bloom_final.frag");
 
 	loadModelToContexts("../project_assets/cave/source/GRUTA_BASE.OBJ", caveContexts);
+	loadCrystalModelToContexts("../project_assets/cristal/cristal.obj", crystalContexts);
+	loadModelToContexts("../project_assets/plant_1/source/anemone on reef L.glb", plantContexts);
+	loadModelToContexts("../project_assets/seaweed_grass/source/seaweed02.fbx", seaweedGrassContexts);
+	loadModelToContexts("../project_assets/seaweed_pink/seaweed_asset.glb", seaweedPinkContexts);
 
 	texture::rockAlbedo = createSolidTexture(110, 132, 136);
 	texture::rockNormal = createSolidTexture(128, 128, 255);
@@ -1127,16 +1475,50 @@ void init(GLFWwindow* window)
 	texture::rustNormal = createSolidTexture(128, 128, 255);
 	texture::sandAlbedo = createSolidTexture(92, 112, 114);
 	texture::flatNormal = createSolidTexture(128, 128, 255);
-	texture::crystalAlbedo = createSolidTexture(80, 220, 255);
+	texture::crystalAlbedo = Core::LoadTexture("../project_assets/cristal/textures/textures/Cristal Base Color.001");
+	texture::plantAlbedo = Core::LoadTexture("../project_assets/plant_1/textures/gltf_embedded_0.jpeg");
+	texture::seaweedGrassAlbedo = Core::LoadTexture("../project_assets/seaweed_grass/textures/seaweed_colour.png");
+	texture::seaweedGrassOpacity = Core::LoadTexture("../project_assets/seaweed_grass/textures/seaweed_opacity.png");
+	texture::seaweedPinkAlbedo = loadEmbeddedAlbedoTexture("../project_assets/seaweed_pink/seaweed_asset.glb", glm::vec3(0.9f, 0.24f, 0.72f));
 	texture::caveAlbedo = Core::LoadTexture("../project_assets/cave/textures/GRUTA_BASE_defaultMat_BaseColor.png");
 	texture::caveNormal = Core::LoadTexture("../project_assets/cave/textures/GRUTA_BASE_defaultMat_Normal.png");
+	setTextureForModelAsset(texture::crystalAlbedo);
+	setTextureForModelAsset(texture::plantAlbedo);
+	setTextureForModelAsset(texture::seaweedGrassAlbedo);
+	setTextureForModelAsset(texture::seaweedGrassOpacity);
+	setTextureForModelAsset(texture::seaweedPinkAlbedo);
 	setTextureForModelAsset(texture::caveAlbedo);
 	setTextureForModelAsset(texture::caveNormal);
 
 	rockMaterial = makeMaterial(texture::rockAlbedo, texture::rockNormal, glm::vec3(0.55f, 0.70f, 0.76f), 0.0f, 0.82f, 1.0f);
 	rustMaterial = makeMaterial(texture::rustAlbedo, texture::rustNormal, glm::vec3(0.82f, 0.78f, 0.72f), 0.65f, 0.58f, 1.0f);
 	sandMaterial = makeMaterial(texture::sandAlbedo, texture::flatNormal, glm::vec3(0.45f, 0.60f, 0.62f), 0.0f, 0.9f, 1.0f);
-	crystalMaterial = makeMaterial(texture::crystalAlbedo, texture::flatNormal, glm::vec3(0.2f, 0.9f, 1.0f), 0.0f, 0.18f, 1.0f);
+	crystalMaterial = makeMaterial(texture::crystalAlbedo, texture::flatNormal, glm::vec3(1.0f, 0.82f, 1.0f), 0.0f, 0.24f, 1.0f);
+	crystalMaterial.normalStrength = 0.0f;
+	crystalMaterial.ambientStrength = 2.3f;
+	crystalMaterial.fogDensity = 0.018f;
+	crystalMaterial.fogMax = 0.38f;
+	plantMaterial = makeMaterial(texture::plantAlbedo, texture::flatNormal, glm::vec3(1.0f), 0.0f, 0.72f, 1.0f);
+	plantMaterial.normalStrength = 0.0f;
+	plantMaterial.ambientStrength = 2.15f;
+	plantMaterial.fogDensity = 0.020f;
+	plantMaterial.fogMax = 0.42f;
+	plantMaterial.flipTextureY = false;
+	seaweedGrassMaterial = makeMaterial(texture::seaweedGrassAlbedo, texture::flatNormal, glm::vec3(0.82f, 1.0f, 0.92f), 0.0f, 0.78f, 1.0f);
+	seaweedGrassMaterial.opacity = texture::seaweedGrassOpacity;
+	seaweedGrassMaterial.useOpacityTexture = true;
+	seaweedGrassMaterial.alphaCutoff = 0.42f;
+	seaweedGrassMaterial.normalStrength = 0.0f;
+	seaweedGrassMaterial.ambientStrength = 2.1f;
+	seaweedGrassMaterial.fogDensity = 0.020f;
+	seaweedGrassMaterial.fogMax = 0.42f;
+	seaweedGrassMaterial.flipTextureY = false;
+	seaweedPinkMaterial = makeMaterial(texture::seaweedPinkAlbedo, texture::flatNormal, glm::vec3(1.0f, 0.78f, 0.96f), 0.0f, 0.66f, 1.0f);
+	seaweedPinkMaterial.normalStrength = 0.0f;
+	seaweedPinkMaterial.ambientStrength = 2.25f;
+	seaweedPinkMaterial.fogDensity = 0.020f;
+	seaweedPinkMaterial.fogMax = 0.42f;
+	seaweedPinkMaterial.flipTextureY = false;
 	caveMaterial = makeMaterial(texture::caveAlbedo, texture::caveNormal, glm::vec3(0.98f, 0.96f, 1.0f), 0.0f, 0.82f, 1.0f);
 	caveMaterial.normalStrength = 0.25f;
 	caveMaterial.ambientStrength = 2.6f;
@@ -1144,6 +1526,7 @@ void init(GLFWwindow* window)
 	caveMaterial.fogMax = 0.48f;
 
 	initSkybox();
+	initSphereContext(sphereContext);
 	initShadowMap();
 	initSeaweedMesh();
 	initScreenQuad();
@@ -1164,6 +1547,9 @@ void shutdown(GLFWwindow* window)
 
 	glDeleteVertexArrays(1, &skyboxVAO);
 	glDeleteBuffers(1, &skyboxVBO);
+	glDeleteVertexArrays(1, &sphereContext.vertexArray);
+	glDeleteBuffers(1, &sphereContext.vertexBuffer);
+	glDeleteBuffers(1, &sphereContext.vertexIndexBuffer);
 	glDeleteVertexArrays(1, &seaweedVAO);
 	glDeleteBuffers(1, &seaweedVBO);
 	glDeleteBuffers(1, &seaweedEBO);

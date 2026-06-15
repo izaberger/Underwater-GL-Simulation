@@ -1,7 +1,6 @@
 #pragma once
 
 #include "glew.h"
-#include "freeglut.h"
 #include <iostream>
 
 namespace Core

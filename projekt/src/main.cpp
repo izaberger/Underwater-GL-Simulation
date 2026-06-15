@@ -43,7 +43,9 @@ int main(int argc, char** argv)
 
 	glewExperimental = GL_TRUE;
 	glewInit();
-	glViewport(0, 0, 1280, 720);
+	int fbWidth, fbHeight;
+    glfwGetFramebufferSize(window, &fbWidth, &fbHeight);
+    glViewport(0, 0, fbWidth, fbHeight);
 
 	IMGUI_CHECKVERSION();
 	ImGui::CreateContext();

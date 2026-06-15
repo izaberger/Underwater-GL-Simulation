@@ -15,6 +15,7 @@
 #include "gtc/constants.hpp"
 #include "gtc/matrix_transform.hpp"
 #include "gtc/quaternion.hpp"
+#define GLM_ENABLE_EXPERIMENTAL
 #include "gtx/quaternion.hpp"
 
 #include "Shader_Loader.h"
@@ -71,6 +72,10 @@ GLuint skyboxVAO = 0;
 GLuint skyboxVBO = 0;
 GLuint skyboxCubemap = 0;
 
+GLuint groundPlaneVAO = 0;
+GLuint groundPlaneVBO = 0;
+int groundPlaneVertexCount = 0;
+
 GLuint seaweedVAO = 0;
 GLuint seaweedVBO = 0;
 GLuint seaweedEBO = 0;
@@ -108,6 +113,9 @@ bool keyPWasDown = false;
 double lastMouseX = 0.0;
 double lastMouseY = 0.0;
 bool firstMouse = true;
+
+void renderProceduralSeaweed(float time);
+void renderSeaweedField(float time);     
 
 struct Material
 {
@@ -165,6 +173,7 @@ Material plantMaterial;
 Material seaweedGrassMaterial;
 Material seaweedPinkMaterial;
 Material caveMaterial;
+Material groundPlaneMaterial;
 
 glm::vec3 lightPos = glm::vec3(-2.5f, 4.6f, -2.0f);
 glm::vec3 lightColor = glm::vec3(4.0f, 5.2f, 6.8f);
@@ -320,7 +329,7 @@ glm::mat4 crystalModelMatrix()
 {
 	const glm::vec3 importedCenter = glm::vec3(-1.524054f, 2.864295f, 0.508725f);
 	return importedModelMatrix(
-		glm::vec3(1.65f, -0.38f, -2.15f),
+		glm::vec3(1.65f, -0.55f, -2.15f),
 		importedCenter,
 		glm::vec3(0.0f, -18.0f, 0.0f),
 		0.14f
@@ -342,7 +351,7 @@ glm::mat4 seaweedGrassModelMatrix()
 {
 	const glm::vec3 importedCenter = glm::vec3(2.192963f, 48.910385f, 3.925060f);
 	return importedModelMatrix(
-		glm::vec3(0.20f, 0.00f, -2.85f),
+		glm::vec3(0.20f, -0.75f, -2.85f),
 		importedCenter,
 		glm::vec3(0.0f, -12.0f, 0.0f),
 		0.012f
@@ -352,7 +361,7 @@ glm::mat4 seaweedGrassModelMatrix()
 glm::mat4 seaweedPinkModelMatrix()
 {
 	return importedModelMatrix(
-		glm::vec3(2.25f, -0.10f, -1.35f),
+		glm::vec3(2.25f, -0.75f, -1.35f),
 		glm::vec3(0.0f),
 		glm::vec3(0.0f, -30.0f, 0.0f),
 		0.52f
@@ -625,13 +634,12 @@ void initSphereContext(Core::RenderContext& context)
 			indices.push_back(i3);
 		}
 	}
-
-	unsigned int vertexDataBufferSize = unsigned int(sizeof(float) * positions.size());
-	unsigned int vertexNormalBufferSize = unsigned int(sizeof(float) * normals.size());
-	unsigned int vertexTexBufferSize = unsigned int(sizeof(float) * texCoords.size());
-	unsigned int vertexTangentBufferSize = unsigned int(sizeof(float) * tangents.size());
-	unsigned int vertexBiTangentBufferSize = unsigned int(sizeof(float) * bitangents.size());
-	unsigned int vertexElementBufferSize = unsigned int(sizeof(unsigned int) * indices.size());
+	unsigned int vertexDataBufferSize = (unsigned int)(sizeof(float) * positions.size());
+	unsigned int vertexNormalBufferSize = (unsigned int)(sizeof(float) * normals.size());
+	unsigned int vertexTexBufferSize = (unsigned int)(sizeof(float) * texCoords.size());
+	unsigned int vertexTangentBufferSize = (unsigned int)(sizeof(float) * tangents.size());
+	unsigned int vertexBiTangentBufferSize = (unsigned int)(sizeof(float) * bitangents.size());
+	unsigned int vertexElementBufferSize = (unsigned int)(sizeof(unsigned int) * indices.size());
 
 	context.size = int(indices.size());
 	glGenVertexArrays(1, &context.vertexArray);
@@ -688,6 +696,94 @@ void initSkybox()
 	glBufferData(GL_ARRAY_BUFFER, sizeof(skyboxVertices), skyboxVertices, GL_STATIC_DRAW);
 	glEnableVertexAttribArray(0);
 	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
+	glBindVertexArray(0);
+}
+
+void initGroundPlane()
+{
+	// Create a 10x10 ground plane centered at origin, Y = 0
+	float planeSize = 5.0f; // Will result in 10x10 plane
+	std::vector<float> positions = {
+		-planeSize, 0.0f, -planeSize,
+		 planeSize, 0.0f, -planeSize,
+		 planeSize, 0.0f,  planeSize,
+		-planeSize, 0.0f, -planeSize,
+		 planeSize, 0.0f,  planeSize,
+		-planeSize, 0.0f,  planeSize
+	};
+
+	std::vector<float> normals = {
+		0.0f, 1.0f, 0.0f,
+		0.0f, 1.0f, 0.0f,
+		0.0f, 1.0f, 0.0f,
+		0.0f, 1.0f, 0.0f,
+		0.0f, 1.0f, 0.0f,
+		0.0f, 1.0f, 0.0f
+	};
+
+	std::vector<float> texCoords = {
+		0.0f, 0.0f,
+		1.0f, 0.0f,
+		1.0f, 1.0f,
+		0.0f, 0.0f,
+		1.0f, 1.0f,
+		0.0f, 1.0f
+	};
+
+	std::vector<float> tangents = {
+		1.0f, 0.0f, 0.0f,
+		1.0f, 0.0f, 0.0f,
+		1.0f, 0.0f, 0.0f,
+		1.0f, 0.0f, 0.0f,
+		1.0f, 0.0f, 0.0f,
+		1.0f, 0.0f, 0.0f
+	};
+
+	std::vector<float> bitangents = {
+		0.0f, 0.0f, 1.0f,
+		0.0f, 0.0f, 1.0f,
+		0.0f, 0.0f, 1.0f,
+		0.0f, 0.0f, 1.0f,
+		0.0f, 0.0f, 1.0f,
+		0.0f, 0.0f, 1.0f
+	};
+
+	unsigned int vertexDataBufferSize = (unsigned int)(sizeof(float) * positions.size());
+	unsigned int vertexNormalBufferSize = (unsigned int)(sizeof(float) * normals.size());
+	unsigned int vertexTexBufferSize = (unsigned int)(sizeof(float) * texCoords.size());
+	unsigned int vertexTangentBufferSize = (unsigned int)(sizeof(float) * tangents.size());
+	unsigned int vertexBiTangentBufferSize = (unsigned int)(sizeof(float) * bitangents.size());
+
+	groundPlaneVertexCount = (int)positions.size() / 3;
+
+	glGenVertexArrays(1, &groundPlaneVAO);
+	glBindVertexArray(groundPlaneVAO);
+
+	glGenBuffers(1, &groundPlaneVBO);
+	glBindBuffer(GL_ARRAY_BUFFER, groundPlaneVBO);
+	glBufferData(
+		GL_ARRAY_BUFFER,
+		vertexDataBufferSize + vertexNormalBufferSize + vertexTexBufferSize + vertexTangentBufferSize + vertexBiTangentBufferSize,
+		NULL,
+		GL_STATIC_DRAW
+	);
+
+	glBufferSubData(GL_ARRAY_BUFFER, 0, vertexDataBufferSize, positions.data());
+	glBufferSubData(GL_ARRAY_BUFFER, vertexDataBufferSize, vertexNormalBufferSize, normals.data());
+	glBufferSubData(GL_ARRAY_BUFFER, vertexDataBufferSize + vertexNormalBufferSize, vertexTexBufferSize, texCoords.data());
+	glBufferSubData(GL_ARRAY_BUFFER, vertexDataBufferSize + vertexNormalBufferSize + vertexTexBufferSize, vertexTangentBufferSize, tangents.data());
+	glBufferSubData(GL_ARRAY_BUFFER, vertexDataBufferSize + vertexNormalBufferSize + vertexTexBufferSize + vertexTangentBufferSize, vertexBiTangentBufferSize, bitangents.data());
+
+	glEnableVertexAttribArray(0);
+	glEnableVertexAttribArray(1);
+	glEnableVertexAttribArray(2);
+	glEnableVertexAttribArray(3);
+	glEnableVertexAttribArray(4);
+	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, (void*)0);
+	glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 0, (void*)(vertexDataBufferSize));
+	glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 0, (void*)(vertexDataBufferSize + vertexNormalBufferSize));
+	glVertexAttribPointer(3, 3, GL_FLOAT, GL_FALSE, 0, (void*)(vertexDataBufferSize + vertexNormalBufferSize + vertexTexBufferSize));
+	glVertexAttribPointer(4, 3, GL_FLOAT, GL_FALSE, 0, (void*)(vertexDataBufferSize + vertexNormalBufferSize + vertexTexBufferSize + vertexTangentBufferSize));
 	glBindVertexArray(0);
 }
 
@@ -778,7 +874,7 @@ void initSeaweedMesh()
 {
 	std::vector<SeaweedVertex> vertices;
 	std::vector<unsigned int> indices;
-	const int segments = 7;
+	const int segments = 40;
 	const float height = 1.45f;
 
 	for (int i = 0; i <= segments; i++)
@@ -1054,6 +1150,55 @@ void drawSkybox()
 	glDepthFunc(GL_LESS);
 }
 
+void drawGroundPlane()
+{
+	glm::mat4 modelMatrix = glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, -0.8f, 0.0f));
+	
+	glUseProgram(programPBR);
+
+	glm::mat4 view = camera.viewMatrix();
+	glm::mat4 projection = createPerspectiveMatrix();
+	glm::mat4 transformation = projection * view * modelMatrix;
+	glm::mat4 lightSpace = lightSpaceMatrix();
+
+	glUniformMatrix4fv(glGetUniformLocation(programPBR, "transformation"), 1, GL_FALSE, (float*)&transformation);
+	glUniformMatrix4fv(glGetUniformLocation(programPBR, "modelMatrix"), 1, GL_FALSE, (float*)&modelMatrix);
+	glUniformMatrix4fv(glGetUniformLocation(programPBR, "lightSpaceMatrix"), 1, GL_FALSE, (float*)&lightSpace);
+	glUniform3fv(glGetUniformLocation(programPBR, "cameraPos"), 1, (float*)&camera.position);
+	glUniform3fv(glGetUniformLocation(programPBR, "lightPos"), 1, (float*)&lightPos);
+	glUniform3fv(glGetUniformLocation(programPBR, "lightColor"), 1, (float*)&lightColor);
+	glUniform3fv(glGetUniformLocation(programPBR, "baseColor"), 1, (float*)&groundPlaneMaterial.baseColor);
+	glUniform1f(glGetUniformLocation(programPBR, "metallic"), groundPlaneMaterial.metallic);
+	glUniform1f(glGetUniformLocation(programPBR, "roughness"), groundPlaneMaterial.roughness);
+	glUniform1f(glGetUniformLocation(programPBR, "ao"), groundPlaneMaterial.ao);
+	glUniform1f(glGetUniformLocation(programPBR, "textureScale"), groundPlaneMaterial.textureScale);
+	glUniform1f(glGetUniformLocation(programPBR, "normalStrength"), groundPlaneMaterial.normalStrength);
+	glUniform1f(glGetUniformLocation(programPBR, "ambientStrength"), groundPlaneMaterial.ambientStrength);
+	glUniform1f(glGetUniformLocation(programPBR, "fogDensity"), groundPlaneMaterial.fogDensity);
+	glUniform1f(glGetUniformLocation(programPBR, "fogMax"), groundPlaneMaterial.fogMax);
+	glUniform1i(glGetUniformLocation(programPBR, "flipTextureY"), groundPlaneMaterial.flipTextureY ? 1 : 0);
+	glUniform1i(glGetUniformLocation(programPBR, "useOpacityTexture"), groundPlaneMaterial.useOpacityTexture ? 1 : 0);
+	glUniform1f(glGetUniformLocation(programPBR, "alphaCutoff"), groundPlaneMaterial.alphaCutoff);
+	glm::vec3 emissiveColor = glm::vec3(0.0f);
+	glUniform3fv(glGetUniformLocation(programPBR, "emissiveColor"), 1, (float*)&emissiveColor);
+	glUniform1f(glGetUniformLocation(programPBR, "emissiveStrength"), 0.0f);
+	glUniform3fv(glGetUniformLocation(programPBR, "fogColor"), 1, (float*)&waterFogColor);
+	glUniform1i(glGetUniformLocation(programPBR, "enableShadows"), enableShadows ? 1 : 0);
+
+	Core::SetActiveTexture(groundPlaneMaterial.albedo, "colorTexture", programPBR, 0);
+	Core::SetActiveTexture(groundPlaneMaterial.normal, "normalMap", programPBR, 1);
+	glUniform1i(glGetUniformLocation(programPBR, "shadowMap"), 2);
+	glActiveTexture(GL_TEXTURE2);
+	glBindTexture(GL_TEXTURE_2D, depthMap);
+	glUniform1i(glGetUniformLocation(programPBR, "opacityTexture"), 3);
+	glActiveTexture(GL_TEXTURE3);
+	glBindTexture(GL_TEXTURE_2D, groundPlaneMaterial.opacity);
+
+	glBindVertexArray(groundPlaneVAO);
+	glDrawArrays(GL_TRIANGLES, 0, groundPlaneVertexCount);
+	glBindVertexArray(0);
+}
+
 void drawRefractiveBubble(glm::mat4 modelMatrix)
 {
 	glUseProgram(programRefract);
@@ -1207,51 +1352,160 @@ void renderCoreObjects(bool depthOnly)
 
 	renderCaveRings(depthOnly);
 
-	drawCrystalCluster(depthOnly, glm::vec3(-3.15f, -0.88f, -4.15f), 18.0f, 1.05f, glm::vec3(1.00f, 0.18f, 0.78f));
-	drawCrystalCluster(depthOnly, glm::vec3(-2.55f, 1.60f, -4.55f), -18.0f, 0.78f, glm::vec3(1.00f, 0.20f, 0.86f));
-	drawCrystalCluster(depthOnly, glm::vec3(2.65f, 1.75f, -4.35f), 24.0f, 0.82f, glm::vec3(0.95f, 0.25f, 1.00f));
-	drawCrystalCluster(depthOnly, glm::vec3(3.25f, -0.92f, 2.85f), -35.0f, 0.92f, glm::vec3(0.95f, 0.18f, 0.85f));
-	drawCrystalCluster(depthOnly, glm::vec3(-3.45f, 1.12f, 3.80f), 32.0f, 0.74f, glm::vec3(0.70f, 0.95f, 1.00f));
-	drawCrystalCluster(depthOnly, glm::vec3(1.10f, -0.96f, -3.25f), -10.0f, 0.66f, glm::vec3(0.55f, 0.90f, 1.00f));
+	// Główne skupiska kryształów
+	drawCrystalCluster(depthOnly, glm::vec3(-3.15f, -0.68f, -4.15f), 18.0f, 1.05f, glm::vec3(1.00f, 0.18f, 0.78f));
+	drawCrystalCluster(depthOnly, glm::vec3(-2.55f, -0.55f, -4.55f), -18.0f, 0.78f, glm::vec3(1.00f, 0.20f, 0.86f));
+	drawCrystalCluster(depthOnly, glm::vec3(2.65f, -0.50f, -4.35f), 24.0f, 0.82f, glm::vec3(0.95f, 0.25f, 1.00f));
+	drawCrystalCluster(depthOnly, glm::vec3(3.25f, -0.70f, 2.85f), -35.0f, 0.92f, glm::vec3(0.95f, 0.18f, 0.85f));
+	drawCrystalCluster(depthOnly, glm::vec3(-3.45f, -0.60f, 3.80f), 32.0f, 0.74f, glm::vec3(0.70f, 0.95f, 1.00f));
+	drawCrystalCluster(depthOnly, glm::vec3(1.10f, -0.72f, -3.25f), -10.0f, 0.66f, glm::vec3(0.55f, 0.90f, 1.00f));
+	
+	// Mniejsze rozproszone kryształki - grupa lewostronna
+	drawCrystalCluster(depthOnly, glm::vec3(-4.20f, -0.65f, -2.00f), 45.0f, 0.42f, glm::vec3(0.88f, 0.22f, 0.92f));
+	drawCrystalCluster(depthOnly, glm::vec3(-3.80f, -0.68f, -0.50f), -22.0f, 0.38f, glm::vec3(0.85f, 0.30f, 0.95f));
+	drawCrystalCluster(depthOnly, glm::vec3(-4.65f, -0.70f, 1.20f), 55.0f, 0.35f, glm::vec3(0.92f, 0.25f, 0.88f));
+	drawCrystalCluster(depthOnly, glm::vec3(-3.25f, -0.62f, 1.90f), -40.0f, 0.40f, glm::vec3(0.78f, 0.92f, 1.00f));
+	
+	// Mniejsze rozproszone kryształki - grupa prawostronna
+	drawCrystalCluster(depthOnly, glm::vec3(4.10f, -0.68f, -3.20f), -25.0f, 0.40f, glm::vec3(1.00f, 0.28f, 0.75f));
+	drawCrystalCluster(depthOnly, glm::vec3(3.70f, -0.65f, -1.50f), 30.0f, 0.38f, glm::vec3(0.92f, 0.32f, 0.85f));
+	drawCrystalCluster(depthOnly, glm::vec3(4.50f, -0.70f, 0.80f), -50.0f, 0.36f, glm::vec3(0.88f, 0.28f, 0.90f));
+	drawCrystalCluster(depthOnly, glm::vec3(3.90f, -0.63f, 2.50f), 20.0f, 0.42f, glm::vec3(0.65f, 0.88f, 1.00f));
+	
+	// Bardzo małe dekoracyjne kryształki - środek
+	drawCrystalCluster(depthOnly, glm::vec3(0.50f, -0.72f, -2.80f), 15.0f, 0.32f, glm::vec3(0.95f, 0.22f, 0.82f));
+	drawCrystalCluster(depthOnly, glm::vec3(-0.80f, -0.68f, 0.50f), -38.0f, 0.30f, glm::vec3(0.75f, 0.92f, 1.00f));
+	drawCrystalCluster(depthOnly, glm::vec3(1.80f, -0.70f, 1.20f), 42.0f, 0.31f, glm::vec3(0.90f, 0.25f, 0.88f));
+	drawCrystalCluster(depthOnly, glm::vec3(-0.30f, -0.65f, -0.80f), -12.0f, 0.29f, glm::vec3(0.82f, 0.88f, 0.98f));
 }
 
 void renderSeaweedField(float time)
 {
+	// Główne skupiska wodorostów
 	glm::vec3 positions[] = {
-		glm::vec3(-3.9f, -1.05f, -4.2f),
-		glm::vec3(-3.3f, -1.05f, -3.4f),
-		glm::vec3(-4.1f, -1.05f,  2.6f),
-		glm::vec3(-3.4f, -1.05f,  3.6f),
-		glm::vec3( 3.4f, -1.05f, -4.0f),
-		glm::vec3( 4.0f, -1.05f, -2.8f),
-		glm::vec3( 3.6f, -1.05f,  2.9f),
-		glm::vec3( 2.9f, -1.05f,  3.8f),
-		glm::vec3( 0.8f, -1.05f, -4.5f)
+		// Lewy tylny róg - gęste skupisko
+		glm::vec3(-3.9f, -0.75f, -4.2f),
+		glm::vec3(-3.3f, -0.75f, -3.4f),
+		glm::vec3(-4.5f, -0.75f, -3.8f),
+		glm::vec3(-3.7f, -0.75f, -4.6f),
+		glm::vec3(-4.1f, -0.75f, -3.1f),
+		// Lewy przedni róg - skupisko
+		glm::vec3(-4.1f, -0.75f,  2.6f),
+		glm::vec3(-3.4f, -0.75f,  3.6f),
+		glm::vec3(-4.7f, -0.75f,  3.1f),
+		glm::vec3(-3.8f, -0.75f,  2.0f),
+		glm::vec3(-4.3f, -0.75f,  4.0f),
+		// Prawy tylny róg - skupisko
+		glm::vec3( 3.4f, -0.75f, -4.0f),
+		glm::vec3( 4.0f, -0.75f, -2.8f),
+		glm::vec3( 4.6f, -0.75f, -3.5f),
+		glm::vec3( 3.8f, -0.75f, -4.5f),
+		glm::vec3( 4.3f, -0.75f, -3.0f),
+		// Prawy przedni róg - skupisko
+		glm::vec3( 3.6f, -0.75f,  2.9f),
+		glm::vec3( 2.9f, -0.75f,  3.8f),
+		glm::vec3( 4.3f, -0.75f,  3.4f),
+		glm::vec3( 3.2f, -0.75f,  2.2f),
+		glm::vec3( 4.1f, -0.75f,  4.2f),
+		// Środek przedni - dekoracyjne skupisko
+		glm::vec3( 0.8f, -0.75f, -4.5f),
+		glm::vec3( 1.5f, -0.75f, -4.0f),
+		glm::vec3( 0.1f, -0.75f, -4.2f),
+		glm::vec3( 1.1f, -0.75f, -4.8f),
+		glm::vec3( 0.5f, -0.75f, -3.8f)
 	};
 
-	for (int i = 0; i < 9; i++)
+	for (int i = 0; i < 25; i++)
 	{
+		float scaleVar = 0.65f + 0.12f * (i % 4);
 		glm::mat4 model = makeModel(
 			positions[i],
-			glm::vec3(0.0f, 37.0f * i, 0.0f),
-			glm::vec3(0.75f + 0.08f * (i % 3))
+			glm::vec3(0.0f, 37.0f * i + 15.0f * std::sinf(i * 0.5f), 0.0f),
+			glm::vec3(scaleVar)
 		);
-		drawSeaweed(model, time + 0.37f * i);
+		drawSeaweed(model, time + 0.37f * i + 0.15f * std::cosf(i * 0.8f));
+		
 	}
+	renderProceduralSeaweed(time);
+	
+}
+
+void renderProceduralSeaweed(float time) {
+    glm::vec3 clusters[] = {
+        glm::vec3(-2.0f, -0.78f, -2.0f),
+        glm::vec3(2.0f, -0.78f, 2.0f),
+        glm::vec3(-2.5f, -0.78f, 1.5f),
+        glm::vec3(2.5f, -0.78f, -1.5f)
+    };
+
+	for (int c = 0; c < 4; c++) {
+        for (int i = 0; i < 5; i++) {
+            float x = clusters[c].x + (float)(rand() % 40 - 20) / 50.0f;
+            float z = clusters[c].z + (float)(rand() % 40 - 20) / 50.0f;
+            
+            glm::mat4 model = makeModel(glm::vec3(x, -0.78f, z), glm::vec3(0.0f, (float)(rand() % 360), 0.0f), glm::vec3(0.2f));
+            
+            drawSeaweed(model, 0.0f); 
+        }
+    }
+
+    
+}
+
+void renderPurpleCoralFields(bool depthOnly) {
+    glm::vec3 positions[] = {
+        glm::vec3(0.0f, -0.7f, 4.5f),
+        glm::vec3(-1.2f, -0.7f, 4.2f),
+        glm::vec3(1.2f, -0.7f, 4.2f),
+        glm::vec3(-2.0f, -0.7f, 4.0f),
+        glm::vec3(2.0f, -0.7f, 4.0f)
+    };
+
+    for (int i = 0; i < 5; i++) {
+        // Używamy modelu plantMaterial, który już masz w kodzie
+        glm::mat4 model = makeModel(positions[i], glm::vec3(0.0f, (float)(i * 45), 0.0f), glm::vec3(0.8f));
+        
+        // Rysujemy ten konkretny model (plantContexts[0])
+        drawSceneObject(depthOnly, plantContexts[0], model, plantMaterial, glm::vec3(0.0f), 0.0f);
+    }
 }
 
 void renderTransportCrystalDust(float time)
 {
-	for (int i = 0; i < int(transportFrames.size()); i += 6)
-	{
-		const PTFrame& frame = transportFrames[i];
-		float flicker = 0.75f + 0.25f * std::sin(time * 2.6f + i * 0.41f);
-		glm::vec3 offset = frame.n * (0.08f + 0.05f * std::sin(i)) + frame.b * (0.05f * std::cos(i * 1.7f));
-		glm::vec3 color = (i % 2 == 0) ? glm::vec3(1.0f, 0.18f, 0.82f) : glm::vec3(0.48f, 0.95f, 1.0f);
-		glm::mat4 marker = glm::translate(glm::mat4(1.0f), frame.p + offset)
-			* glm::scale(glm::mat4(1.0f), glm::vec3(0.020f + 0.010f * (i % 3)));
-		drawColor(sphereContext, marker, color, enableCrystals ? 0.75f * flicker : 0.0f);
-	}
+    srand(12345); 
+
+    glm::vec3 clusterCenters[] = {
+        glm::vec3(-3.8f, 0.5f, -2.0f), glm::vec3(3.8f, 0.5f, -2.0f), 
+        glm::vec3(-3.5f, 1.8f, 0.5f),  glm::vec3(3.5f, 1.8f, 0.5f),  
+        glm::vec3(-4.0f, 0.2f, 1.5f),  glm::vec3(4.0f, 0.2f, 1.5f),  
+        glm::vec3(0.0f, 1.5f, 3.5f)    
+    };
+
+    for (int c = 0; c < 7; c++) 
+    {
+        for (int i = 0; i < 200; i++) 
+        {
+            float ox = (float)(rand() % 300 - 150) / 100.0f;
+            float oy = (float)(rand() % 300 - 150) / 100.0f;
+            float oz = (float)(rand() % 300 - 150) / 100.0f;
+            
+            glm::vec3 pos = clusterCenters[c] + glm::vec3(ox, oy, oz);
+
+            bool naDnie = (pos.y < -0.4f);
+            bool naWyjsciu = (pos.z > 2.8f);
+            bool srodekJaskini = (pos.x > -2.0f && pos.x < 2.0f && pos.y < 2.0f);
+            bool nadRoslinami = (pos.z > 2.0f && pos.y > 0.2f);
+            
+            if (naDnie || naWyjsciu || (srodekJaskini && !nadRoslinami)) {
+                continue; 
+            }
+
+            glm::mat4 marker = glm::translate(glm::mat4(1.0f), pos)
+                             * glm::scale(glm::mat4(1.0f), glm::vec3(0.008f));
+            
+            drawColor(sphereContext, marker, glm::vec3(0.9f, 0.2f, 0.8f), 2.0f);
+        }
+    }
 }
 
 void renderDepthPass()
@@ -1272,6 +1526,7 @@ void renderSceneToHDR(GLFWwindow* window)
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
 	drawSkybox();
+	drawGroundPlane();
 	for (unsigned int i = 0; i < caveContexts.size(); i++)
 	{
 		drawPBR(caveContexts[i], caveModelMatrix(), caveMaterial, glm::vec3(0.0f), 0.0f);
@@ -1292,6 +1547,11 @@ void renderSceneToHDR(GLFWwindow* window)
 	{
 		drawPBR(seaweedPinkContexts[i], seaweedPinkModelMatrix(), seaweedPinkMaterial, glm::vec3(0.22f, 0.02f, 0.18f), 0.22f);
 	}
+
+	renderSeaweedField(float(glfwGetTime()));
+	renderPurpleCoralFields(false);
+	renderTransportCrystalDust(float(glfwGetTime()));
+
 	if (enableBubble)
 		drawRefractiveBubble(bubbleModelMatrix());
 
@@ -1448,6 +1708,9 @@ void updateDeltaTime(float time)
 
 void init(GLFWwindow* window)
 {
+	// Initialize seed for procedural generation (deterministic but looks random)
+	srand(42);
+
 	glfwSetFramebufferSizeCallback(window, framebuffer_size_callback);
 	glfwSetCursorPosCallback(window, mouse_callback);
 	glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
@@ -1525,7 +1788,14 @@ void init(GLFWwindow* window)
 	caveMaterial.fogDensity = 0.026f;
 	caveMaterial.fogMax = 0.48f;
 
+	groundPlaneMaterial = makeMaterial(texture::sandAlbedo, texture::flatNormal, glm::vec3(0.40f, 0.55f, 0.58f), 0.0f, 0.80f, 0.6f);
+	groundPlaneMaterial.normalStrength = 0.15f;
+	groundPlaneMaterial.ambientStrength = 1.8f;
+	groundPlaneMaterial.fogDensity = 0.030f;
+	groundPlaneMaterial.fogMax = 0.50f;
+
 	initSkybox();
+	initGroundPlane();
 	initSphereContext(sphereContext);
 	initShadowMap();
 	initSeaweedMesh();
@@ -1547,6 +1817,8 @@ void shutdown(GLFWwindow* window)
 
 	glDeleteVertexArrays(1, &skyboxVAO);
 	glDeleteBuffers(1, &skyboxVBO);
+	glDeleteVertexArrays(1, &groundPlaneVAO);
+	glDeleteBuffers(1, &groundPlaneVBO);
 	glDeleteVertexArrays(1, &sphereContext.vertexArray);
 	glDeleteBuffers(1, &sphereContext.vertexBuffer);
 	glDeleteBuffers(1, &sphereContext.vertexIndexBuffer);

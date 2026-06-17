@@ -105,8 +105,8 @@ float bloomExposure = 1.0f;
 float crystalGlow = 3.2f;
 float bubbleIOR = 1.12f;
 float bubbleAlpha = 0.55f;
-float seaweedStrength = 0.28f;
-float seaweedSpeed = 1.15f;
+float seaweedStrength = 0.08f;
+float seaweedSpeed = 0.65f;
 glm::vec2 currentDirection = glm::normalize(glm::vec2(0.7f, 0.35f));
 
 bool keyCWasDown = false;
@@ -1408,7 +1408,10 @@ void drawSmallCrystal(bool depthOnly, glm::vec3 position, glm::vec3 rotation, gl
 {
 	glm::mat4 model = makeModel(position, rotation, scale);
 	float glow = enableCrystals ? crystalGlow * glowMultiplier : 0.0f;
-	drawSceneObject(depthOnly, cubeContext, model, crystalMaterial, glowColor, glow);
+	
+	for (unsigned int i = 0; i < crystalContexts.size(); i++) {
+	    drawSceneObject(depthOnly, crystalContexts[i], model, crystalMaterial, glowColor, glow);
+    }
 }
 
 void drawCrystalCluster(bool depthOnly, glm::vec3 basePosition, float yaw, float clusterScale, glm::vec3 glowColor)
@@ -1547,45 +1550,47 @@ void renderSeaweedField(float time)
 {
 	// Główne skupiska wodorostów
 	glm::vec3 positions[] = {
-		// Lewy tylny róg - gęste skupisko
-		glm::vec3(-3.9f, -0.75f, -4.2f),
-		glm::vec3(-3.3f, -0.75f, -3.4f),
-		glm::vec3(-4.5f, -0.75f, -3.8f),
-		glm::vec3(-3.7f, -0.75f, -4.6f),
-		glm::vec3(-4.1f, -0.75f, -3.1f),
-		// Lewy przedni róg - skupisko
-		glm::vec3(-4.1f, -0.75f,  2.6f),
-		glm::vec3(-3.4f, -0.75f,  3.6f),
-		glm::vec3(-4.7f, -0.75f,  3.1f),
-		glm::vec3(-3.8f, -0.75f,  2.0f),
-		glm::vec3(-4.3f, -0.75f,  4.0f),
-		// Prawy tylny róg - skupisko
-		glm::vec3( 3.4f, -0.75f, -4.0f),
-		glm::vec3( 4.0f, -0.75f, -2.8f),
-		glm::vec3( 4.6f, -0.75f, -3.5f),
-		glm::vec3( 3.8f, -0.75f, -4.5f),
-		glm::vec3( 4.3f, -0.75f, -3.0f),
-		// Prawy przedni róg - skupisko
-		glm::vec3( 3.6f, -0.75f,  2.9f),
-		glm::vec3( 2.9f, -0.75f,  3.8f),
-		glm::vec3( 4.3f, -0.75f,  3.4f),
-		glm::vec3( 3.2f, -0.75f,  2.2f),
-		glm::vec3( 4.1f, -0.75f,  4.2f),
-		// Środek przedni - dekoracyjne skupisko
-		glm::vec3( 0.8f, -0.75f, -4.5f),
-		glm::vec3( 1.5f, -0.75f, -4.0f),
-		glm::vec3( 0.1f, -0.75f, -4.2f),
-		glm::vec3( 1.1f, -0.75f, -4.8f),
-		glm::vec3( 0.5f, -0.75f, -3.8f)
+		// Lewy tylny róg
+		glm::vec3(-3.9f, -1.15f, -4.2f),
+		glm::vec3(-3.3f, -1.15f, -3.4f),
+		glm::vec3(-4.5f, -1.15f, -3.8f),
+		glm::vec3(-3.7f, -1.15f, -4.6f),
+		glm::vec3(-4.1f, -1.15f, -3.1f),
+		// Lewy przedni róg
+		glm::vec3(-4.1f, -1.15f,  2.6f),
+		glm::vec3(-3.4f, -1.15f,  3.6f),
+		glm::vec3(-4.7f, -1.15f,  3.1f),
+		glm::vec3(-3.8f, -1.15f,  2.0f),
+		glm::vec3(-4.3f, -1.15f,  4.0f),
+		// Prawy tylny róg
+		glm::vec3( 3.4f, -1.15f, -4.0f),
+		glm::vec3( 4.0f, -1.15f, -2.8f),
+		glm::vec3( 4.6f, -1.15f, -3.5f),
+		glm::vec3( 3.8f, -1.15f, -4.5f),
+		glm::vec3( 4.3f, -1.15f, -3.0f),
+		// Prawy przedni róg
+		glm::vec3( 3.6f, -1.15f,  2.9f),
+		glm::vec3( 2.9f, -1.15f,  3.8f),
+		glm::vec3( 4.3f, -1.15f,  3.4f),
+		glm::vec3( 3.2f, -1.15f,  2.2f),
+		glm::vec3( 4.1f, -1.15f,  4.2f),
+		
+		glm::vec3( 4.8f, -1.15f, -1.5f),
+		glm::vec3( 4.5f, -1.15f, -1.0f),
+		glm::vec3( 4.1f, -1.15f,  0.2f),
+		glm::vec3( 4.6f, -1.15f,  0.8f),
+		glm::vec3( 4.5f, -1.15f, -0.5f)
 	};
 
 	for (int i = 0; i < 25; i++)
 	{
-		float scaleVar = 0.65f + 0.12f * (i % 4);
+		float thickness = 0.5f + 0.15f * (i % 3);
+		float height = 0.6f + 0.25f * (i % 4);
+
 		glm::mat4 model = makeModel(
 			positions[i],
 			glm::vec3(0.0f, 37.0f * i + 15.0f * std::sinf(i * 0.5f), 0.0f),
-			glm::vec3(scaleVar)
+			glm::vec3(thickness, height, thickness)
 		);
 		drawSeaweed(model, time + 0.37f * i + 0.15f * std::cosf(i * 0.8f));
 		
@@ -1595,11 +1600,16 @@ void renderSeaweedField(float time)
 }
 
 void renderProceduralSeaweed(float time) {
+
+	srand(4321);
+
     glm::vec3 clusters[] = {
-        glm::vec3(-2.0f, -0.78f, -2.0f),
-        glm::vec3(2.0f, -0.78f, 2.0f),
-        glm::vec3(-2.5f, -0.78f, 1.5f),
-        glm::vec3(2.5f, -0.78f, -1.5f)
+        glm::vec3(-3.5f, -1.15f, -2.0f), // Lewy bok
+        glm::vec3( 3.5f, -1.15f,  2.0f), // Prawy bok
+        glm::vec3(-3.6f, -1.15f,  1.5f), // Lewy bok
+        glm::vec3( 3.6f, -1.15f, -1.5f), // Prawy bok
+        glm::vec3( 0.0f, -1.15f, -2.5f), // Środek tył
+        glm::vec3( 0.0f, -1.15f,  1.5f)  // Środek przód
     };
 
 	for (int c = 0; c < 4; c++) {
@@ -1607,13 +1617,18 @@ void renderProceduralSeaweed(float time) {
             float x = clusters[c].x + (float)(rand() % 40 - 20) / 50.0f;
             float z = clusters[c].z + (float)(rand() % 40 - 20) / 50.0f;
             
-            glm::mat4 model = makeModel(glm::vec3(x, -0.78f, z), glm::vec3(0.0f, (float)(rand() % 360), 0.0f), glm::vec3(0.2f));
-            
-            drawSeaweed(model, 0.0f); 
-        }
-    }
+			float height = 0.60f + (float)(rand() % 50) / 100.0f;
+            float thickness = 0.40f + (float)(rand() % 30) / 100.0f;
+			float randomYaw = (float)(rand() % 360);
 
+            glm::mat4 model1 = makeModel(glm::vec3(x, clusters[c].y, z), glm::vec3(0.0f, randomYaw, 0.0f), glm::vec3(thickness, height, thickness));
+			drawSeaweed(model1, time + (float)i * 0.3f);
+
+			glm::mat4 model2 = makeModel(glm::vec3(x, clusters[c].y, z), glm::vec3(0.0f, randomYaw + 90.0f, 0.0f), glm::vec3(thickness, height, thickness));
+			drawSeaweed(model2, time + (float)i * 0.3f);
     
+        }
+    }  
 }
 
 void renderPurpleCoralFields(bool depthOnly) {
@@ -1639,19 +1654,24 @@ void renderTransportCrystalDust(float time)
     srand(12345); 
 
     glm::vec3 clusterCenters[] = {
-        glm::vec3(-3.8f, 0.5f, -2.0f), glm::vec3(3.8f, 0.5f, -2.0f), 
-        glm::vec3(-3.5f, 1.8f, 0.5f),  glm::vec3(3.5f, 1.8f, 0.5f),  
-        glm::vec3(-4.0f, 0.2f, 1.5f),  glm::vec3(4.0f, 0.2f, 1.5f),  
-        glm::vec3(0.0f, 1.5f, 3.5f)    
+        glm::vec3(-4.0f, 0.5f, -2.0f), glm::vec3(4.0f, 0.5f, -2.0f), 
+        glm::vec3(-3.8f, 1.8f, 0.5f),  glm::vec3(3.8f, 1.8f, 0.5f),  
+        glm::vec3(-4.2f, 0.2f, 1.5f),  glm::vec3(4.2f, 0.2f, 1.5f),  
+        glm::vec3(-4.0f, 2.5f, -3.0f), glm::vec3(4.0f, 2.5f, -3.0f), 
+        glm::vec3(-3.5f, 1.0f,  3.0f), glm::vec3(3.5f, 1.0f,  3.0f), 
+        glm::vec3(0.0f, 2.5f, -1.0f),
+		glm::vec3(-2.0f, 1.2f, 4.2f), 
+        glm::vec3(0.0f, 1.6f, 4.5f), 
+        glm::vec3(2.0f, 1.2f, 4.2f)
     };
 
-    for (int c = 0; c < 7; c++) 
+    for (int c = 0; c < 14; c++) 
     {
-        for (int i = 0; i < 200; i++) 
+        for (int i = 0; i < 800; i++) 
         {
-            float ox = (float)(rand() % 300 - 150) / 100.0f;
-            float oy = (float)(rand() % 300 - 150) / 100.0f;
-            float oz = (float)(rand() % 300 - 150) / 100.0f;
+            float ox = (float)(rand() % 500 - 250) / 100.0f;
+            float oy = (float)(rand() % 500 - 250) / 100.0f;
+            float oz = (float)(rand() % 500 - 250) / 100.0f;
             
             glm::vec3 pos = clusterCenters[c] + glm::vec3(ox, oy, oz);
 
@@ -1680,6 +1700,28 @@ void renderDepthPass()
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
 }
 
+// nowa funkcja generujaca krysztaly
+void renderWallCrystals(bool depthOnly)
+{
+    for (int i = 0; i < 100; i++) 
+    {
+        float t = (float)i;
+        float z = -8.0f + 16.0f * std::abs(std::sinf(t * 11.23f)); 
+        
+		bool isLeft = std::cosf(t * 22.34f) > 0.0f;
+        float xOffset = std::sinf(t * 33.45f) * 0.8f;
+        float x = isLeft ? (-4.2f + xOffset) : (4.2f - xOffset);
+        
+		float y = -0.8f + std::abs(std::cosf(t * 44.56f)) * 4.5f;
+        
+        float yaw = std::sinf(t * 55.67f) * 180.0f;
+        
+        float scale = 0.2f + std::abs(std::sinf(t * 66.78f)) * 0.4f;
+        
+        drawCrystalCluster(depthOnly, glm::vec3(x, y, z), yaw, scale, glm::vec3(0.0f));
+    }
+}
+
 void renderSceneToHDR(GLFWwindow* window)
 {
 	glViewport(0, 0, framebufferWidth, framebufferHeight);
@@ -1694,13 +1736,26 @@ void renderSceneToHDR(GLFWwindow* window)
 	{
 		drawPBR(caveContexts[i], caveModelMatrix(), caveMaterial, glm::vec3(0.0f), 0.0f);
 	}
-	for (unsigned int i = 0; i < sceneObjects.size(); i++)
-		drawEditableSceneObject(sceneObjects[i]);
+	
+	for (unsigned int i = 0; i < sceneObjects.size(); i++) {
+        if (sceneObjects[i].type != ObjectType::Bubble) {
+		    drawEditableSceneObject(sceneObjects[i]);
+        }
+    }
+
 	drawSelectedObjectMarker();
 
 	renderSeaweedField(float(glfwGetTime()));
 	renderPurpleCoralFields(false);
 	renderTransportCrystalDust(float(glfwGetTime()));
+	renderWallCrystals(false);
+
+	// obiekty przezroczyste
+	for (unsigned int i = 0; i < sceneObjects.size(); i++) {
+        if (sceneObjects[i].type == ObjectType::Bubble) {
+		    drawEditableSceneObject(sceneObjects[i]);
+        }
+    }
 
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
 }

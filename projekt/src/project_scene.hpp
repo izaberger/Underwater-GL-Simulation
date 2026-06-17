@@ -1691,7 +1691,6 @@ void renderSceneToHDR(GLFWwindow* window)
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
 	drawSkybox();
-	drawGroundPlane();
 	for (unsigned int i = 0; i < caveContexts.size(); i++)
 	{
 		drawPBR(caveContexts[i], caveModelMatrix(), caveMaterial, glm::vec3(0.0f), 0.0f);

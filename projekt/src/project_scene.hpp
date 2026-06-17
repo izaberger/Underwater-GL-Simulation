@@ -33,6 +33,8 @@
 #include <cmath>
 #include <cfloat>
 #include <cstdlib>
+#include <fstream>
+#include <iomanip>
 #include <iostream>
 #include <string>
 #include <vector>
@@ -109,6 +111,10 @@ glm::vec2 currentDirection = glm::normalize(glm::vec2(0.7f, 0.35f));
 
 bool keyCWasDown = false;
 bool keyPWasDown = false;
+bool keyFWasDown = false;
+bool keyTabWasDown = false;
+bool keyMWasDown = false;
+bool keyDeleteWasDown = false;
 
 double lastMouseX = 0.0;
 double lastMouseY = 0.0;
@@ -135,6 +141,64 @@ struct Material
 	bool useOpacityTexture = false;
 	float alphaCutoff = 0.35f;
 };
+
+enum class ObjectType
+{
+	Crystal,
+	Plant,
+	SeaweedGrass,
+	SeaweedPink,
+	Bubble
+};
+
+struct SceneObject
+{
+	ObjectType type = ObjectType::Crystal;
+	glm::vec3 position = glm::vec3(0.0f);
+	glm::vec3 rotation = glm::vec3(0.0f);
+	glm::vec3 scale = glm::vec3(1.0f);
+};
+
+std::vector<SceneObject> sceneObjects;
+int selectedSceneObject = 0;
+
+const char* objectTypeName(ObjectType type)
+{
+	switch (type)
+	{
+	case ObjectType::Crystal:
+		return "Crystal";
+	case ObjectType::Plant:
+		return "Plant 1";
+	case ObjectType::SeaweedGrass:
+		return "Seaweed grass";
+	case ObjectType::SeaweedPink:
+		return "Seaweed pink";
+	case ObjectType::Bubble:
+		return "Bubble";
+	default:
+		return "Unknown";
+	}
+}
+
+const char* objectTypeCodeName(ObjectType type)
+{
+	switch (type)
+	{
+	case ObjectType::Crystal:
+		return "Crystal";
+	case ObjectType::Plant:
+		return "Plant";
+	case ObjectType::SeaweedGrass:
+		return "SeaweedGrass";
+	case ObjectType::SeaweedPink:
+		return "SeaweedPink";
+	case ObjectType::Bubble:
+		return "Bubble";
+	default:
+		return "Crystal";
+	}
+}
 
 Material makeMaterial(GLuint albedo, GLuint normal, glm::vec3 baseColor, float metallic, float roughness, float ao)
 {
@@ -375,6 +439,47 @@ glm::mat4 bubbleModelMatrix()
 		glm::vec3(0.0f),
 		glm::vec3(0.46f)
 	);
+}
+
+glm::mat4 importedSceneObjectMatrix(const SceneObject& object, glm::vec3 importedCenter)
+{
+	glm::mat4 model = glm::translate(glm::mat4(1.0f), object.position);
+	model = glm::rotate(model, glm::radians(object.rotation.x), glm::vec3(1.0f, 0.0f, 0.0f));
+	model = glm::rotate(model, glm::radians(object.rotation.y), glm::vec3(0.0f, 1.0f, 0.0f));
+	model = glm::rotate(model, glm::radians(object.rotation.z), glm::vec3(0.0f, 0.0f, 1.0f));
+	model = glm::scale(model, object.scale);
+	model = glm::translate(model, -importedCenter);
+	return model;
+}
+
+glm::mat4 sceneObjectModelMatrix(const SceneObject& object)
+{
+	switch (object.type)
+	{
+	case ObjectType::Crystal:
+		return importedSceneObjectMatrix(object, glm::vec3(-1.524054f, 2.864295f, 0.508725f));
+	case ObjectType::Plant:
+		return importedSceneObjectMatrix(object, glm::vec3(0.014267f, 0.182588f, 0.009282f));
+	case ObjectType::SeaweedGrass:
+		return importedSceneObjectMatrix(object, glm::vec3(2.192963f, 48.910385f, 3.925060f));
+	case ObjectType::SeaweedPink:
+		return importedSceneObjectMatrix(object, glm::vec3(0.0f));
+	case ObjectType::Bubble:
+		return makeModel(object.position, object.rotation, object.scale);
+	default:
+		return glm::mat4(1.0f);
+	}
+}
+
+void initSceneLayout()
+{
+	sceneObjects.clear();
+	sceneObjects.push_back({ ObjectType::Crystal, glm::vec3(1.65f, -0.38f, -2.15f), glm::vec3(0.0f, -18.0f, 0.0f), glm::vec3(0.14f) });
+	sceneObjects.push_back({ ObjectType::Plant, glm::vec3(-1.45f, -0.62f, -2.05f), glm::vec3(0.0f, 24.0f, 0.0f), glm::vec3(0.65f) });
+	sceneObjects.push_back({ ObjectType::SeaweedGrass, glm::vec3(0.20f, 0.00f, -2.85f), glm::vec3(0.0f, -12.0f, 0.0f), glm::vec3(0.012f) });
+	sceneObjects.push_back({ ObjectType::SeaweedPink, glm::vec3(2.25f, -0.10f, -1.35f), glm::vec3(0.0f, -30.0f, 0.0f), glm::vec3(0.52f) });
+	sceneObjects.push_back({ ObjectType::Bubble, glm::vec3(-0.15f, 0.68f, -1.55f), glm::vec3(0.0f), glm::vec3(0.46f) });
+	selectedSceneObject = 0;
 }
 
 glm::mat4 lightSpaceMatrix()
@@ -1226,6 +1331,66 @@ void drawRefractiveBubble(glm::mat4 modelMatrix)
 	glDisable(GL_BLEND);
 }
 
+void drawEditableSceneObject(const SceneObject& object)
+{
+	glm::mat4 model = sceneObjectModelMatrix(object);
+
+	switch (object.type)
+	{
+	case ObjectType::Crystal:
+		for (unsigned int i = 0; i < crystalContexts.size(); i++)
+			drawPBR(crystalContexts[i], model, crystalMaterial, glm::vec3(1.0f, 0.16f, 0.82f), enableCrystals ? 1.45f : 0.0f);
+		break;
+	case ObjectType::Plant:
+		for (unsigned int i = 0; i < plantContexts.size(); i++)
+			drawPBR(plantContexts[i], model, plantMaterial, glm::vec3(0.0f), 0.0f);
+		break;
+	case ObjectType::SeaweedGrass:
+		for (unsigned int i = 0; i < seaweedGrassContexts.size(); i++)
+			drawPBR(seaweedGrassContexts[i], model, seaweedGrassMaterial, glm::vec3(0.0f), 0.0f);
+		break;
+	case ObjectType::SeaweedPink:
+		for (unsigned int i = 0; i < seaweedPinkContexts.size(); i++)
+			drawPBR(seaweedPinkContexts[i], model, seaweedPinkMaterial, glm::vec3(0.22f, 0.02f, 0.18f), 0.22f);
+		break;
+	case ObjectType::Bubble:
+		if (enableBubble)
+			drawRefractiveBubble(model);
+		break;
+	}
+}
+
+float selectedMarkerLift(const SceneObject& object)
+{
+	switch (object.type)
+	{
+	case ObjectType::Crystal:
+		return 0.82f;
+	case ObjectType::Plant:
+		return 0.52f;
+	case ObjectType::SeaweedGrass:
+		return 1.35f;
+	case ObjectType::SeaweedPink:
+		return 0.82f;
+	case ObjectType::Bubble:
+		return object.scale.y + 0.20f;
+	default:
+		return 0.5f;
+	}
+}
+
+void drawSelectedObjectMarker()
+{
+	if (sceneObjects.empty())
+		return;
+
+	selectedSceneObject = std::max(0, std::min(selectedSceneObject, int(sceneObjects.size()) - 1));
+	const SceneObject& object = sceneObjects[selectedSceneObject];
+	glm::vec3 markerPos = object.position + glm::vec3(0.0f, selectedMarkerLift(object), 0.0f);
+	glm::mat4 markerModel = makeModel(markerPos, glm::vec3(0.0f), glm::vec3(0.055f));
+	drawColor(sphereContext, markerModel, glm::vec3(1.0f, 0.92f, 0.18f), 2.2f);
+}
+
 void drawSceneObject(bool depthOnly, Core::RenderContext& context, glm::mat4 model, const Material& material, glm::vec3 emissiveColor, float emissiveStrength)
 {
 	if (depthOnly)
@@ -1531,29 +1696,13 @@ void renderSceneToHDR(GLFWwindow* window)
 	{
 		drawPBR(caveContexts[i], caveModelMatrix(), caveMaterial, glm::vec3(0.0f), 0.0f);
 	}
-	for (unsigned int i = 0; i < crystalContexts.size(); i++)
-	{
-		drawPBR(crystalContexts[i], crystalModelMatrix(), crystalMaterial, glm::vec3(1.0f, 0.16f, 0.82f), 1.45f);
-	}
-	for (unsigned int i = 0; i < plantContexts.size(); i++)
-	{
-		drawPBR(plantContexts[i], plantModelMatrix(), plantMaterial, glm::vec3(0.0f), 0.0f);
-	}
-	for (unsigned int i = 0; i < seaweedGrassContexts.size(); i++)
-	{
-		drawPBR(seaweedGrassContexts[i], seaweedGrassModelMatrix(), seaweedGrassMaterial, glm::vec3(0.0f), 0.0f);
-	}
-	for (unsigned int i = 0; i < seaweedPinkContexts.size(); i++)
-	{
-		drawPBR(seaweedPinkContexts[i], seaweedPinkModelMatrix(), seaweedPinkMaterial, glm::vec3(0.22f, 0.02f, 0.18f), 0.22f);
-	}
+	for (unsigned int i = 0; i < sceneObjects.size(); i++)
+		drawEditableSceneObject(sceneObjects[i]);
+	drawSelectedObjectMarker();
 
 	renderSeaweedField(float(glfwGetTime()));
 	renderPurpleCoralFields(false);
 	renderTransportCrystalDust(float(glfwGetTime()));
-
-	if (enableBubble)
-		drawRefractiveBubble(bubbleModelMatrix());
 
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
 }
@@ -1601,16 +1750,160 @@ void renderBloomResult()
 	glDisable(GL_CULL_FACE);
 }
 
+void writeVec3Code(std::ofstream& file, const glm::vec3& value)
+{
+	file << "glm::vec3(" << value.x << "f, " << value.y << "f, " << value.z << "f)";
+}
+
+bool writeSceneLayoutFile(const std::string& path)
+{
+	std::ofstream file(path.c_str());
+	if (!file.is_open())
+		return false;
+
+	file << "#pragma once\n\n";
+	file << "// Generated with the temporary scene layout editor. Include this after SceneObject/ObjectType declarations.\n";
+	file << "static std::vector<SceneObject> generatedSceneLayout()\n";
+	file << "{\n";
+	file << "\treturn {\n";
+	file << std::fixed << std::setprecision(4);
+	for (unsigned int i = 0; i < sceneObjects.size(); i++)
+	{
+		const SceneObject& object = sceneObjects[i];
+		file << "\t\t{ ObjectType::" << objectTypeCodeName(object.type) << ", ";
+		writeVec3Code(file, object.position);
+		file << ", ";
+		writeVec3Code(file, object.rotation);
+		file << ", ";
+		writeVec3Code(file, object.scale);
+		file << " }";
+		if (i + 1 < sceneObjects.size())
+			file << ",";
+		file << "\n";
+	}
+	file << "\t};\n";
+	file << "}\n";
+	return true;
+}
+
+void saveSceneLayout()
+{
+	const std::string path = "generated_scene_layout.hpp";
+	if (writeSceneLayoutFile(path))
+	{
+		std::cout << "Scene layout saved to " << path << std::endl;
+		return;
+	}
+
+	std::cout << "Could not save scene layout to " << path << std::endl;
+}
+
+void selectNextSceneObject()
+{
+	if (sceneObjects.empty())
+		return;
+
+	selectedSceneObject = (selectedSceneObject + 1) % int(sceneObjects.size());
+	std::cout << "Selected object " << selectedSceneObject + 1 << "/" << sceneObjects.size()
+		<< ": " << objectTypeName(sceneObjects[selectedSceneObject].type) << std::endl;
+}
+
+void duplicateSelectedSceneObject()
+{
+	if (sceneObjects.empty())
+		return;
+
+	selectedSceneObject = std::max(0, std::min(selectedSceneObject, int(sceneObjects.size()) - 1));
+	SceneObject copy = sceneObjects[selectedSceneObject];
+	copy.position += glm::vec3(0.28f, 0.0f, 0.18f);
+	sceneObjects.push_back(copy);
+	selectedSceneObject = int(sceneObjects.size()) - 1;
+	std::cout << "Duplicated " << objectTypeName(copy.type) << ", objects: " << sceneObjects.size() << std::endl;
+}
+
+void deleteSelectedSceneObject()
+{
+	if (sceneObjects.size() <= 1)
+		return;
+
+	selectedSceneObject = std::max(0, std::min(selectedSceneObject, int(sceneObjects.size()) - 1));
+	std::cout << "Deleted " << objectTypeName(sceneObjects[selectedSceneObject].type) << std::endl;
+	sceneObjects.erase(sceneObjects.begin() + selectedSceneObject);
+	selectedSceneObject = std::min(selectedSceneObject, int(sceneObjects.size()) - 1);
+}
+
+void editSelectedSceneObject(GLFWwindow* window)
+{
+	if (sceneObjects.empty() || ImGui::GetIO().WantCaptureKeyboard)
+		return;
+
+	selectedSceneObject = std::max(0, std::min(selectedSceneObject, int(sceneObjects.size()) - 1));
+	SceneObject& object = sceneObjects[selectedSceneObject];
+
+	bool ctrlDown = glfwGetKey(window, GLFW_KEY_LEFT_CONTROL) == GLFW_PRESS || glfwGetKey(window, GLFW_KEY_RIGHT_CONTROL) == GLFW_PRESS;
+	bool shiftDown = glfwGetKey(window, GLFW_KEY_LEFT_SHIFT) == GLFW_PRESS || glfwGetKey(window, GLFW_KEY_RIGHT_SHIFT) == GLFW_PRESS;
+	bool altDown = glfwGetKey(window, GLFW_KEY_LEFT_ALT) == GLFW_PRESS || glfwGetKey(window, GLFW_KEY_RIGHT_ALT) == GLFW_PRESS;
+
+	float moveSpeed = (altDown ? 0.22f : 0.82f) * deltaTime;
+	float rotateSpeed = (altDown ? 24.0f : 72.0f) * deltaTime;
+	float scaleSpeed = (altDown ? 0.35f : 0.85f) * deltaTime;
+
+	if (glfwGetKey(window, GLFW_KEY_LEFT) == GLFW_PRESS)
+		object.position.x -= moveSpeed;
+	if (glfwGetKey(window, GLFW_KEY_RIGHT) == GLFW_PRESS)
+		object.position.x += moveSpeed;
+	if (glfwGetKey(window, GLFW_KEY_UP) == GLFW_PRESS)
+	{
+		if (shiftDown)
+			object.position.y += moveSpeed;
+		else
+			object.position.z -= moveSpeed;
+	}
+	if (glfwGetKey(window, GLFW_KEY_DOWN) == GLFW_PRESS)
+	{
+		if (shiftDown)
+			object.position.y -= moveSpeed;
+		else
+			object.position.z += moveSpeed;
+	}
+
+	float rotationDirection = shiftDown ? -1.0f : 1.0f;
+	if (!ctrlDown && glfwGetKey(window, GLFW_KEY_Q) == GLFW_PRESS)
+		object.rotation.x += rotateSpeed * rotationDirection;
+	if (!ctrlDown && glfwGetKey(window, GLFW_KEY_E) == GLFW_PRESS)
+		object.rotation.y += rotateSpeed * rotationDirection;
+	if (!ctrlDown && glfwGetKey(window, GLFW_KEY_R) == GLFW_PRESS)
+		object.rotation.z += rotateSpeed * rotationDirection;
+
+	if (glfwGetKey(window, GLFW_KEY_Z) == GLFW_PRESS)
+		object.scale = glm::max(object.scale * (1.0f - scaleSpeed), glm::vec3(0.001f));
+	if (glfwGetKey(window, GLFW_KEY_X) == GLFW_PRESS)
+		object.scale *= (1.0f + scaleSpeed);
+}
+
 void renderGui()
 {
-	ImGui::SetNextWindowSize(ImVec2(260, 190), ImGuiCond_FirstUseEver);
+	ImGui::SetNextWindowSize(ImVec2(330, 260), ImGuiCond_FirstUseEver);
 	ImGui::Begin("GRK underwater");
 	ImGui::Checkbox("Bloom", &enableBloom);
 	ImGui::SliderFloat("Exposure", &bloomExposure, 0.2f, 2.5f);
 	ImGui::Checkbox("Bubble A13", &enableBubble);
 	ImGui::SliderFloat("Bubble IOR", &bubbleIOR, 0.92f, 1.35f);
 	ImGui::SliderFloat("Bubble alpha", &bubbleAlpha, 0.15f, 0.85f);
-	ImGui::Text("Mouse rotate, C");
+	ImGui::Separator();
+	if (!sceneObjects.empty())
+	{
+		selectedSceneObject = std::max(0, std::min(selectedSceneObject, int(sceneObjects.size()) - 1));
+		const SceneObject& object = sceneObjects[selectedSceneObject];
+		ImGui::Text("Selected %d/%d: %s", selectedSceneObject + 1, int(sceneObjects.size()), objectTypeName(object.type));
+		ImGui::Text("Pos: %.2f %.2f %.2f", object.position.x, object.position.y, object.position.z);
+		ImGui::Text("Rot: %.1f %.1f %.1f", object.rotation.x, object.rotation.y, object.rotation.z);
+		ImGui::Text("Scale: %.3f %.3f %.3f", object.scale.x, object.scale.y, object.scale.z);
+	}
+	ImGui::Text("F/TAB object, arrows move, Shift+Up/Down Y");
+	ImGui::Text("Q/E/R rotate XYZ, Shift reverses, Z/X scale");
+	ImGui::Text("P copy, Del remove, M save");
+	ImGui::Text("C mouse, Ctrl+WASD camera");
 	ImGui::End();
 }
 
@@ -1627,6 +1920,8 @@ void processInput(GLFWwindow* window)
 	if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
 		glfwSetWindowShouldClose(window, true);
 
+	bool ctrlDown = glfwGetKey(window, GLFW_KEY_LEFT_CONTROL) == GLFW_PRESS || glfwGetKey(window, GLFW_KEY_RIGHT_CONTROL) == GLFW_PRESS;
+
 	if (pressedOnce(window, GLFW_KEY_C, keyCWasDown))
 	{
 		mouseLook = !mouseLook;
@@ -1634,7 +1929,7 @@ void processInput(GLFWwindow* window)
 		glfwSetInputMode(window, GLFW_CURSOR, mouseLook ? GLFW_CURSOR_DISABLED : GLFW_CURSOR_NORMAL);
 	}
 
-	if (glfwGetKey(window, GLFW_KEY_LEFT_CONTROL) == GLFW_PRESS)
+	if (ctrlDown)
 	{
 		float calibrationSpeed = 1.2f * deltaTime;
 		if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS)
@@ -1651,13 +1946,31 @@ void processInput(GLFWwindow* window)
 			camera.position += camera.up() * calibrationSpeed;
 	}
 
+	if (pressedOnce(window, GLFW_KEY_F, keyFWasDown) || pressedOnce(window, GLFW_KEY_TAB, keyTabWasDown))
+		selectNextSceneObject();
+
+	if (pressedOnce(window, GLFW_KEY_M, keyMWasDown))
+		saveSceneLayout();
+
+	if (pressedOnce(window, GLFW_KEY_DELETE, keyDeleteWasDown))
+		deleteSelectedSceneObject();
+
 	if (pressedOnce(window, GLFW_KEY_P, keyPWasDown))
 	{
-		std::cout << "camera.position = glm::vec3("
-			<< camera.position.x << "f, "
-			<< camera.position.y << "f, "
-			<< camera.position.z << "f);" << std::endl;
+		if (ctrlDown)
+		{
+			std::cout << "camera.position = glm::vec3("
+				<< camera.position.x << "f, "
+				<< camera.position.y << "f, "
+				<< camera.position.z << "f);" << std::endl;
+		}
+		else
+		{
+			duplicateSelectedSceneObject();
+		}
 	}
+
+	editSelectedSceneObject(window);
 }
 
 void mouse_callback(GLFWwindow* window, double xpos, double ypos)
@@ -1794,6 +2107,7 @@ void init(GLFWwindow* window)
 	groundPlaneMaterial.fogDensity = 0.030f;
 	groundPlaneMaterial.fogMax = 0.50f;
 
+	initSceneLayout();
 	initSkybox();
 	initGroundPlane();
 	initSphereContext(sphereContext);
@@ -1839,7 +2153,7 @@ void renderLoop(GLFWwindow* window)
 		ImGui_ImplOpenGL3_NewFrame();
 		ImGui_ImplGlfw_NewFrame();
 		ImGui::NewFrame();
-		// UI is hidden during the asset import test, so the cave model fills the view.
+		renderGui();
 
 		renderDepthPass();
 		renderSceneToHDR(window);

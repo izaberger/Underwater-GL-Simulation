@@ -1,3 +1,18 @@
+# macOS system files
+.DS_Store
+
+# IDE / Editor folders
+.vscode/
+
+# Build folders
+build/
+
+# Project metadata / Documentation
+*.md
+*.txt
+*.sh
+*.bat
+
 # Visual Studio / build output
 .vs/
 Debug/

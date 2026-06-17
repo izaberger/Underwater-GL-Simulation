@@ -162,6 +162,7 @@ struct SceneObject
 std::vector<SceneObject> sceneObjects;
 int selectedSceneObject = 0;
 
+#include "../generated_scene_layout.hpp"
 const char* objectTypeName(ObjectType type)
 {
 	switch (type)
@@ -473,13 +474,11 @@ glm::mat4 sceneObjectModelMatrix(const SceneObject& object)
 
 void initSceneLayout()
 {
-	sceneObjects.clear();
-	sceneObjects.push_back({ ObjectType::Crystal, glm::vec3(1.65f, -0.38f, -2.15f), glm::vec3(0.0f, -18.0f, 0.0f), glm::vec3(0.14f) });
-	sceneObjects.push_back({ ObjectType::Plant, glm::vec3(-1.45f, -0.62f, -2.05f), glm::vec3(0.0f, 24.0f, 0.0f), glm::vec3(0.65f) });
-	sceneObjects.push_back({ ObjectType::SeaweedGrass, glm::vec3(0.20f, 0.00f, -2.85f), glm::vec3(0.0f, -12.0f, 0.0f), glm::vec3(0.012f) });
-	sceneObjects.push_back({ ObjectType::SeaweedPink, glm::vec3(2.25f, -0.10f, -1.35f), glm::vec3(0.0f, -30.0f, 0.0f), glm::vec3(0.52f) });
-	sceneObjects.push_back({ ObjectType::Bubble, glm::vec3(-0.15f, 0.68f, -1.55f), glm::vec3(0.0f), glm::vec3(0.46f) });
-	selectedSceneObject = 0;
+    // To ładuje wszystkie obiekty z Twojego pliku generated_scene_layout.hpp
+    sceneObjects = generatedSceneLayout(); 
+    
+    // Resetuje zaznaczenie na pierwszy obiekt
+    selectedSceneObject = 0;
 }
 
 glm::mat4 lightSpaceMatrix()
@@ -2029,14 +2028,14 @@ void init(GLFWwindow* window)
 
 	glEnable(GL_DEPTH_TEST);
 
-	programPBR = shaderLoader.CreateProgram("shaders/pbr.vert", "shaders/pbr.frag");
-	programSkybox = shaderLoader.CreateProgram("shaders/skybox.vert", "shaders/skybox.frag");
-	programRefract = shaderLoader.CreateProgram("shaders/refract.vert", "shaders/refract.frag");
-	programSeaweed = shaderLoader.CreateProgram("shaders/seaweed.vert", "shaders/seaweed.frag");
-	programDepth = shaderLoader.CreateProgram("shaders/depth.vert", "shaders/depth.frag");
-	programColor = shaderLoader.CreateProgram("shaders/color.vert", "shaders/color.frag");
-	programBlur = shaderLoader.CreateProgram("shaders/blur.vert", "shaders/blur.frag");
-	programBloomCombine = shaderLoader.CreateProgram("shaders/bloom_final.vert", "shaders/bloom_final.frag");
+	programPBR = shaderLoader.CreateProgram("../projekt/shaders/pbr.vert", "../projekt/shaders/pbr.frag");
+	programSkybox = shaderLoader.CreateProgram("../projekt/shaders/skybox.vert", "../projekt/shaders/skybox.frag");
+	programRefract = shaderLoader.CreateProgram("../projekt/shaders/refract.vert", "../projekt/shaders/refract.frag");
+	programSeaweed = shaderLoader.CreateProgram("../projekt/shaders/seaweed.vert", "../projekt/shaders/seaweed.frag");
+	programDepth = shaderLoader.CreateProgram("../projekt/shaders/depth.vert", "../projekt/shaders/depth.frag");
+	programColor = shaderLoader.CreateProgram("../projekt/shaders/color.vert", "../projekt/shaders/color.frag");
+	programBlur = shaderLoader.CreateProgram("../projekt/shaders/blur.vert", "../projekt/shaders/blur.frag");
+	programBloomCombine = shaderLoader.CreateProgram("../projekt/shaders/bloom_final.vert", "../projekt/shaders/bloom_final.frag");
 
 	loadModelToContexts("../project_assets/cave/source/GRUTA_BASE.OBJ", caveContexts);
 	loadCrystalModelToContexts("../project_assets/cristal/cristal.obj", crystalContexts);

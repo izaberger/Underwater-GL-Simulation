@@ -92,6 +92,7 @@ GLuint depthMap = 0;
 GLuint hdrFBO = 0;
 GLuint colorBuffers[2] = { 0, 0 };
 GLuint hdrDepthRBO = 0;
+GLuint refractionSceneTexture = 0;
 GLuint pingpongFBO[2] = { 0, 0 };
 GLuint pingpongColorbuffers[2] = { 0, 0 };
 
@@ -105,6 +106,7 @@ float bloomExposure = 1.0f;
 float crystalGlow = 3.2f;
 float bubbleIOR = 1.12f;
 float bubbleAlpha = 0.55f;
+float bubbleRefractionStrength = 0.085f;
 float seaweedStrength = 0.08f;
 float seaweedSpeed = 0.65f;
 glm::vec2 currentDirection = glm::normalize(glm::vec2(0.7f, 0.35f));
@@ -920,6 +922,7 @@ void createBloomBuffers(int width, int height)
 	{
 		glDeleteFramebuffers(1, &hdrFBO);
 		glDeleteTextures(2, colorBuffers);
+		glDeleteTextures(1, &refractionSceneTexture);
 		glDeleteRenderbuffers(1, &hdrDepthRBO);
 		glDeleteFramebuffers(2, pingpongFBO);
 		glDeleteTextures(2, pingpongColorbuffers);
@@ -939,6 +942,14 @@ void createBloomBuffers(int width, int height)
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
 		glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0 + i, GL_TEXTURE_2D, colorBuffers[i], 0);
 	}
+
+	glGenTextures(1, &refractionSceneTexture);
+	glBindTexture(GL_TEXTURE_2D, refractionSceneTexture);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA16F, width, height, 0, GL_RGBA, GL_FLOAT, NULL);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
 
 	glGenRenderbuffers(1, &hdrDepthRBO);
 	glBindRenderbuffer(GL_RENDERBUFFER, hdrDepthRBO);
@@ -1313,14 +1324,20 @@ void drawRefractiveBubble(glm::mat4 modelMatrix)
 
 	glUniformMatrix4fv(glGetUniformLocation(programRefract, "transformation"), 1, GL_FALSE, (float*)&transformation);
 	glUniformMatrix4fv(glGetUniformLocation(programRefract, "modelMatrix"), 1, GL_FALSE, (float*)&modelMatrix);
+	glUniformMatrix4fv(glGetUniformLocation(programRefract, "viewMatrix"), 1, GL_FALSE, (float*)&view);
 	glUniform3fv(glGetUniformLocation(programRefract, "cameraPos"), 1, (float*)&camera.position);
 	glUniform3fv(glGetUniformLocation(programRefract, "fogColor"), 1, (float*)&waterFogColor);
 	glUniform1f(glGetUniformLocation(programRefract, "ior"), bubbleIOR);
 	glUniform1f(glGetUniformLocation(programRefract, "alphaValue"), bubbleAlpha);
+	glUniform1f(glGetUniformLocation(programRefract, "refractionStrength"), bubbleRefractionStrength);
+	glUniform2f(glGetUniformLocation(programRefract, "viewportSize"), float(framebufferWidth), float(framebufferHeight));
 	glUniform1i(glGetUniformLocation(programRefract, "skybox"), 0);
+	glUniform1i(glGetUniformLocation(programRefract, "sceneTexture"), 1);
 
 	glActiveTexture(GL_TEXTURE0);
 	glBindTexture(GL_TEXTURE_CUBE_MAP, skyboxCubemap);
+	glActiveTexture(GL_TEXTURE1);
+	glBindTexture(GL_TEXTURE_2D, refractionSceneTexture);
 
 	glEnable(GL_BLEND);
 	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
@@ -1328,6 +1345,13 @@ void drawRefractiveBubble(glm::mat4 modelMatrix)
 	Core::DrawContext(sphereContext);
 	glDepthMask(GL_TRUE);
 	glDisable(GL_BLEND);
+}
+
+void copySceneForBubbleRefraction()
+{
+	glReadBuffer(GL_COLOR_ATTACHMENT0);
+	glBindTexture(GL_TEXTURE_2D, refractionSceneTexture);
+	glCopyTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, 0, 0, framebufferWidth, framebufferHeight);
 }
 
 void drawEditableSceneObject(const SceneObject& object)
@@ -1750,7 +1774,8 @@ void renderSceneToHDR(GLFWwindow* window)
 
 	renderSeaweedField(float(glfwGetTime()));
 	renderTransportCrystalDust(float(glfwGetTime()));
-	renderWallCrystals(false);
+
+	copySceneForBubbleRefraction();
 
 	// obiekty przezroczyste
 	for (unsigned int i = 0; i < sceneObjects.size(); i++) {
@@ -1945,6 +1970,7 @@ void renderGui()
 	ImGui::Checkbox("Bubble A13", &enableBubble);
 	ImGui::SliderFloat("Bubble IOR", &bubbleIOR, 0.92f, 1.35f);
 	ImGui::SliderFloat("Bubble alpha", &bubbleAlpha, 0.15f, 0.85f);
+	ImGui::SliderFloat("Bubble refract", &bubbleRefractionStrength, 0.0f, 0.22f);
 	ImGui::Separator();
 	if (!sceneObjects.empty())
 	{

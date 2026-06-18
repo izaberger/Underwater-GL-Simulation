@@ -93,6 +93,7 @@ GLuint depthMap = 0;
 GLuint hdrFBO = 0;
 GLuint colorBuffers[2] = { 0, 0 };
 GLuint hdrDepthRBO = 0;
+GLuint refractionSceneTexture = 0;
 GLuint pingpongFBO[2] = { 0, 0 };
 GLuint pingpongColorbuffers[2] = { 0, 0 };
 
@@ -106,6 +107,7 @@ float bloomExposure = 1.0f;
 float crystalGlow = 3.2f;
 float bubbleIOR = 1.12f;
 float bubbleAlpha = 0.55f;
+float bubbleRefractionStrength = 0.085f;
 float seaweedStrength = 0.08f;
 float seaweedSpeed = 0.65f;
 glm::vec2 currentDirection = glm::normalize(glm::vec2(0.7f, 0.35f));
@@ -930,6 +932,7 @@ void createBloomBuffers(int width, int height)
 	{
 		glDeleteFramebuffers(1, &hdrFBO);
 		glDeleteTextures(2, colorBuffers);
+		glDeleteTextures(1, &refractionSceneTexture);
 		glDeleteRenderbuffers(1, &hdrDepthRBO);
 		glDeleteFramebuffers(2, pingpongFBO);
 		glDeleteTextures(2, pingpongColorbuffers);
@@ -949,6 +952,14 @@ void createBloomBuffers(int width, int height)
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
 		glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0 + i, GL_TEXTURE_2D, colorBuffers[i], 0);
 	}
+
+	glGenTextures(1, &refractionSceneTexture);
+	glBindTexture(GL_TEXTURE_2D, refractionSceneTexture);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA16F, width, height, 0, GL_RGBA, GL_FLOAT, NULL);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
 
 	glGenRenderbuffers(1, &hdrDepthRBO);
 	glBindRenderbuffer(GL_RENDERBUFFER, hdrDepthRBO);
@@ -1323,14 +1334,20 @@ void drawRefractiveBubble(glm::mat4 modelMatrix)
 
 	glUniformMatrix4fv(glGetUniformLocation(programRefract, "transformation"), 1, GL_FALSE, (float*)&transformation);
 	glUniformMatrix4fv(glGetUniformLocation(programRefract, "modelMatrix"), 1, GL_FALSE, (float*)&modelMatrix);
+	glUniformMatrix4fv(glGetUniformLocation(programRefract, "viewMatrix"), 1, GL_FALSE, (float*)&view);
 	glUniform3fv(glGetUniformLocation(programRefract, "cameraPos"), 1, (float*)&camera.position);
 	glUniform3fv(glGetUniformLocation(programRefract, "fogColor"), 1, (float*)&waterFogColor);
 	glUniform1f(glGetUniformLocation(programRefract, "ior"), bubbleIOR);
 	glUniform1f(glGetUniformLocation(programRefract, "alphaValue"), bubbleAlpha);
+	glUniform1f(glGetUniformLocation(programRefract, "refractionStrength"), bubbleRefractionStrength);
+	glUniform2f(glGetUniformLocation(programRefract, "viewportSize"), float(framebufferWidth), float(framebufferHeight));
 	glUniform1i(glGetUniformLocation(programRefract, "skybox"), 0);
+	glUniform1i(glGetUniformLocation(programRefract, "sceneTexture"), 1);
 
 	glActiveTexture(GL_TEXTURE0);
 	glBindTexture(GL_TEXTURE_CUBE_MAP, skyboxCubemap);
+	glActiveTexture(GL_TEXTURE1);
+	glBindTexture(GL_TEXTURE_2D, refractionSceneTexture);
 
 	glEnable(GL_BLEND);
 	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
@@ -1338,6 +1355,13 @@ void drawRefractiveBubble(glm::mat4 modelMatrix)
 	Core::DrawContext(sphereContext);
 	glDepthMask(GL_TRUE);
 	glDisable(GL_BLEND);
+}
+
+void copySceneForBubbleRefraction()
+{
+	glReadBuffer(GL_COLOR_ATTACHMENT0);
+	glBindTexture(GL_TEXTURE_2D, refractionSceneTexture);
+	glCopyTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, 0, 0, framebufferWidth, framebufferHeight);
 }
 
 void drawEditableSceneObject(const SceneObject& object)
@@ -1420,11 +1444,11 @@ void drawCaveRock(bool depthOnly, glm::vec3 position, glm::vec3 rotation, glm::v
 
 void drawSmallCrystal(bool depthOnly, glm::vec3 position, glm::vec3 rotation, glm::vec3 scale, glm::vec3 glowColor, float glowMultiplier)
 {
-	glm::mat4 model = makeModel(position, rotation, scale);
-	float glow = enableCrystals ? crystalGlow * glowMultiplier : 0.0f;
-	
-	for (unsigned int i = 0; i < crystalContexts.size(); i++) {
-	    drawSceneObject(depthOnly, crystalContexts[i], model, crystalMaterial, glowColor, glow);
+    glm::mat4 model = makeModel(position, rotation, scale);
+    float glow = enableCrystals ? crystalGlow * glowMultiplier : 0.0f;
+    
+    for (unsigned int i = 0; i < crystalContexts.size(); i++) {
+        drawSceneObject(depthOnly, crystalContexts[i], model, crystalMaterial, glowColor, glow);
     }
 }
 
@@ -1676,16 +1700,31 @@ void renderTransportCrystalDust(float time)
             bool srodekJaskini = (pos.x > -2.0f && pos.x < 2.0f && pos.y < 2.0f);
             bool nadRoslinami = (pos.z > 2.0f && pos.y > 0.2f);
             
+			bool pozaJaskinia = (pos.x < -4.6f || pos.x > 4.6f || pos.y > 2.8f || pos.z < -4.8f || pos.z > 2.8f);
+
             if (naDnie || naWyjsciu || (srodekJaskini && !nadRoslinami)) {
                 continue; 
             }
 
             glm::mat4 marker = glm::translate(glm::mat4(1.0f), pos)
                              * glm::scale(glm::mat4(1.0f), glm::vec3(0.008f));
+
+			glm::vec3 particleColor;
+            int colorType = rand() % 3; 
             
-            drawColor(sphereContext, marker, glm::vec3(0.9f, 0.2f, 0.8f), 2.0f);
+            if (colorType == 0) {
+                particleColor = glm::vec3(0.9f, 0.2f, 0.8f); 
+            } else if (colorType == 1) {
+                particleColor = glm::vec3(0.4f, 0.0f, 0.4f); 
+            } else {
+                particleColor = glm::vec3(0.79f, 0.02f, 0.53f);
+            }
+
+            // krysztal z wylosowanym kolorem
+            drawColor(sphereContext, marker, particleColor, 2.0f);
+            
         }
-    }
+	}
 }
 
 void renderDepthPass()
@@ -1699,22 +1738,28 @@ void renderDepthPass()
 // nowa funkcja generujaca krysztaly
 void renderWallCrystals(bool depthOnly)
 {
+    srand(999); 
+
     for (int i = 0; i < 100; i++) 
     {
         float t = (float)i;
         float z = -8.0f + 16.0f * std::abs(std::sinf(t * 11.23f)); 
         
-		bool isLeft = std::cosf(t * 22.34f) > 0.0f;
+        bool isLeft = std::cosf(t * 22.34f) > 0.0f;
         float xOffset = std::sinf(t * 33.45f) * 0.8f;
         float x = isLeft ? (-4.2f + xOffset) : (4.2f - xOffset);
         
-		float y = -0.8f + std::abs(std::cosf(t * 44.56f)) * 4.5f;
-        
+        float y = -0.8f + std::abs(std::cosf(t * 44.56f)) * 4.5f;
         float yaw = std::sinf(t * 55.67f) * 180.0f;
-        
         float scale = 0.2f + std::abs(std::sinf(t * 66.78f)) * 0.4f;
+       
+        glm::vec3 randomColor = glm::vec3(
+            0.5f + 0.5f * std::sinf(t * 0.1f), 
+            0.5f + 0.5f * std::sinf(t * 0.2f + 2.0f), 
+            0.5f + 0.5f * std::sinf(t * 0.3f + 4.0f)
+        );
         
-        drawCrystalCluster(depthOnly, glm::vec3(x, y, z), yaw, scale, glm::vec3(0.0f));
+        drawCrystalCluster(depthOnly, glm::vec3(x, y, z), yaw, scale, randomColor);
     }
 }
 
@@ -1743,7 +1788,8 @@ void renderSceneToHDR(GLFWwindow* window)
 
 	renderSeaweedField(float(glfwGetTime()));
 	renderTransportCrystalDust(float(glfwGetTime()));
-	renderWallCrystals(false);
+
+	copySceneForBubbleRefraction();
 
 	// obiekty przezroczyste
 	for (unsigned int i = 0; i < sceneObjects.size(); i++) {
@@ -1938,6 +1984,7 @@ void renderGui()
 	ImGui::Checkbox("Bubble A13", &enableBubble);
 	ImGui::SliderFloat("Bubble IOR", &bubbleIOR, 0.92f, 1.35f);
 	ImGui::SliderFloat("Bubble alpha", &bubbleAlpha, 0.15f, 0.85f);
+	ImGui::SliderFloat("Bubble refract", &bubbleRefractionStrength, 0.0f, 0.22f);
 	ImGui::Separator();
 	if (!sceneObjects.empty())
 	{

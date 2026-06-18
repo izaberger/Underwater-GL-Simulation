@@ -1631,24 +1631,6 @@ void renderProceduralSeaweed(float time) {
     }  
 }
 
-void renderPurpleCoralFields(bool depthOnly) {
-    glm::vec3 positions[] = {
-        glm::vec3(0.0f, -0.7f, 4.5f),
-        glm::vec3(-1.2f, -0.7f, 4.2f),
-        glm::vec3(1.2f, -0.7f, 4.2f),
-        glm::vec3(-2.0f, -0.7f, 4.0f),
-        glm::vec3(2.0f, -0.7f, 4.0f)
-    };
-
-    for (int i = 0; i < 5; i++) {
-        // Używamy modelu plantMaterial, który już masz w kodzie
-        glm::mat4 model = makeModel(positions[i], glm::vec3(0.0f, (float)(i * 45), 0.0f), glm::vec3(0.8f));
-        
-        // Rysujemy ten konkretny model (plantContexts[0])
-        drawSceneObject(depthOnly, plantContexts[0], model, plantMaterial, glm::vec3(0.0f), 0.0f);
-    }
-}
-
 void renderTransportCrystalDust(float time)
 {
     srand(12345); 
@@ -1746,7 +1728,6 @@ void renderSceneToHDR(GLFWwindow* window)
 	drawSelectedObjectMarker();
 
 	renderSeaweedField(float(glfwGetTime()));
-	renderPurpleCoralFields(false);
 	renderTransportCrystalDust(float(glfwGetTime()));
 	renderWallCrystals(false);
 

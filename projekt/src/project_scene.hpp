@@ -1662,6 +1662,8 @@ void renderTransportCrystalDust(float time)
             bool srodekJaskini = (pos.x > -2.0f && pos.x < 2.0f && pos.y < 2.0f);
             bool nadRoslinami = (pos.z > 2.0f && pos.y > 0.2f);
             
+			bool pozaJaskinia = (pos.x < -4.6f || pos.x > 4.6f || pos.y > 2.8f || pos.z < -4.8f || pos.z > 2.8f);
+
             if (naDnie || naWyjsciu || (srodekJaskini && !nadRoslinami)) {
                 continue; 
             }

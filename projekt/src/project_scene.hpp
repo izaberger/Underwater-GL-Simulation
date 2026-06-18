@@ -1406,11 +1406,11 @@ void drawCaveRock(bool depthOnly, glm::vec3 position, glm::vec3 rotation, glm::v
 
 void drawSmallCrystal(bool depthOnly, glm::vec3 position, glm::vec3 rotation, glm::vec3 scale, glm::vec3 glowColor, float glowMultiplier)
 {
-	glm::mat4 model = makeModel(position, rotation, scale);
-	float glow = enableCrystals ? crystalGlow * glowMultiplier : 0.0f;
-	
-	for (unsigned int i = 0; i < crystalContexts.size(); i++) {
-	    drawSceneObject(depthOnly, crystalContexts[i], model, crystalMaterial, glowColor, glow);
+    glm::mat4 model = makeModel(position, rotation, scale);
+    float glow = enableCrystals ? crystalGlow * glowMultiplier : 0.0f;
+    
+    for (unsigned int i = 0; i < crystalContexts.size(); i++) {
+        drawSceneObject(depthOnly, crystalContexts[i], model, crystalMaterial, glowColor, glow);
     }
 }
 
@@ -1668,10 +1668,23 @@ void renderTransportCrystalDust(float time)
 
             glm::mat4 marker = glm::translate(glm::mat4(1.0f), pos)
                              * glm::scale(glm::mat4(1.0f), glm::vec3(0.008f));
+
+			glm::vec3 particleColor;
+            int colorType = rand() % 3; 
             
-            drawColor(sphereContext, marker, glm::vec3(0.9f, 0.2f, 0.8f), 2.0f);
+            if (colorType == 0) {
+                particleColor = glm::vec3(0.9f, 0.2f, 0.8f); 
+            } else if (colorType == 1) {
+                particleColor = glm::vec3(0.4f, 0.0f, 0.4f); 
+            } else {
+                particleColor = glm::vec3(0.79f, 0.02f, 0.53f);
+            }
+
+            // krysztal z wylosowanym kolorem
+            drawColor(sphereContext, marker, particleColor, 2.0f);
+            
         }
-    }
+	}
 }
 
 void renderDepthPass()
@@ -1685,22 +1698,28 @@ void renderDepthPass()
 // nowa funkcja generujaca krysztaly
 void renderWallCrystals(bool depthOnly)
 {
+    srand(999); 
+
     for (int i = 0; i < 100; i++) 
     {
         float t = (float)i;
         float z = -8.0f + 16.0f * std::abs(std::sinf(t * 11.23f)); 
         
-		bool isLeft = std::cosf(t * 22.34f) > 0.0f;
+        bool isLeft = std::cosf(t * 22.34f) > 0.0f;
         float xOffset = std::sinf(t * 33.45f) * 0.8f;
         float x = isLeft ? (-4.2f + xOffset) : (4.2f - xOffset);
         
-		float y = -0.8f + std::abs(std::cosf(t * 44.56f)) * 4.5f;
-        
+        float y = -0.8f + std::abs(std::cosf(t * 44.56f)) * 4.5f;
         float yaw = std::sinf(t * 55.67f) * 180.0f;
-        
         float scale = 0.2f + std::abs(std::sinf(t * 66.78f)) * 0.4f;
+       
+        glm::vec3 randomColor = glm::vec3(
+            0.5f + 0.5f * std::sinf(t * 0.1f), 
+            0.5f + 0.5f * std::sinf(t * 0.2f + 2.0f), 
+            0.5f + 0.5f * std::sinf(t * 0.3f + 4.0f)
+        );
         
-        drawCrystalCluster(depthOnly, glm::vec3(x, y, z), yaw, scale, glm::vec3(0.0f));
+        drawCrystalCluster(depthOnly, glm::vec3(x, y, z), yaw, scale, randomColor);
     }
 }
 

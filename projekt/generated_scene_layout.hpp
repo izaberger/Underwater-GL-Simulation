@@ -91,6 +91,7 @@ static std::vector<SceneObject> generatedSceneLayout()
 		{ ObjectType::Crystal, glm::vec3(-3.1016f, -0.9540f, -2.8541f), glm::vec3(1167.4973f, 549.4758f, 518.6531f), glm::vec3(0.0983f, 0.0983f, 0.0983f) },
 		{ ObjectType::Crystal, glm::vec3(-2.8216f, -0.9540f, -2.6741f), glm::vec3(1167.4973f, 549.4758f, 518.6531f), glm::vec3(0.0983f, 0.0983f, 0.0983f) },
 		{ ObjectType::Crystal, glm::vec3(3.3624f, -0.9540f, -5.1181f), glm::vec3(1196.2971f, 1017.4766f, 763.4535f), glm::vec3(0.0528f, 0.0528f, 0.0528f) },
-		{ ObjectType::Crystal, glm::vec3(1.9204f, 1.0960f, -6.3321f), glm::vec3(1289.8965f, 1082.2761f, 763.4535f), glm::vec3(0.0794f, 0.0794f, 0.0794f) }
+		{ ObjectType::Crystal, glm::vec3(1.9204f, 1.0960f, -6.3321f), glm::vec3(1289.8965f, 1082.2761f, 763.4535f), glm::vec3(0.0794f, 0.0794f, 0.0794f) },
+		{ ObjectType::CrystalOrange, glm::vec3(2.5000f, 0.5000f, -3.5000f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.15f, 0.15f, 0.15f) }
 	};
 }

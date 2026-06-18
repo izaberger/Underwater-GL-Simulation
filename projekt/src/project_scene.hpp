@@ -66,6 +66,7 @@ Core::RenderContext cubeContext;
 Core::RenderContext rockContext;
 std::vector<Core::RenderContext> caveContexts;
 std::vector<Core::RenderContext> crystalContexts;
+std::vector<Core::RenderContext> crystalOrangeContexts;
 std::vector<Core::RenderContext> plantContexts;
 std::vector<Core::RenderContext> seaweedGrassContexts;
 std::vector<Core::RenderContext> seaweedPinkContexts;
@@ -145,6 +146,7 @@ struct Material
 enum class ObjectType
 {
 	Crystal,
+	CrystalOrange,
 	Plant,
 	SeaweedGrass,
 	SeaweedPink,
@@ -169,6 +171,8 @@ const char* objectTypeName(ObjectType type)
 	{
 	case ObjectType::Crystal:
 		return "Crystal";
+	case ObjectType::CrystalOrange:
+		return "Crystal Orange";
 	case ObjectType::Plant:
 		return "Plant 1";
 	case ObjectType::SeaweedGrass:
@@ -188,6 +192,8 @@ const char* objectTypeCodeName(ObjectType type)
 	{
 	case ObjectType::Crystal:
 		return "Crystal";
+	case ObjectType::CrystalOrange:
+		return "CrystalOrange";
 	case ObjectType::Plant:
 		return "Plant";
 	case ObjectType::SeaweedGrass:
@@ -222,6 +228,7 @@ namespace texture
 	GLuint sandAlbedo = 0;
 	GLuint flatNormal = 0;
 	GLuint crystalAlbedo = 0;
+	GLuint crystalOrangeAlbedo = 0;
 	GLuint plantAlbedo = 0;
 	GLuint seaweedGrassAlbedo = 0;
 	GLuint seaweedGrassOpacity = 0;
@@ -234,6 +241,7 @@ Material rockMaterial;
 Material rustMaterial;
 Material sandMaterial;
 Material crystalMaterial;
+Material crystalOrangeMaterial;
 Material plantMaterial;
 Material seaweedGrassMaterial;
 Material seaweedPinkMaterial;
@@ -458,6 +466,8 @@ glm::mat4 sceneObjectModelMatrix(const SceneObject& object)
 	switch (object.type)
 	{
 	case ObjectType::Crystal:
+		return importedSceneObjectMatrix(object, glm::vec3(-1.524054f, 2.864295f, 0.508725f));
+	case ObjectType::CrystalOrange:
 		return importedSceneObjectMatrix(object, glm::vec3(-1.524054f, 2.864295f, 0.508725f));
 	case ObjectType::Plant:
 		return importedSceneObjectMatrix(object, glm::vec3(0.014267f, 0.182588f, 0.009282f));
@@ -1340,6 +1350,10 @@ void drawEditableSceneObject(const SceneObject& object)
 		for (unsigned int i = 0; i < crystalContexts.size(); i++)
 			drawPBR(crystalContexts[i], model, crystalMaterial, glm::vec3(1.0f, 0.16f, 0.82f), enableCrystals ? 1.45f : 0.0f);
 		break;
+	case ObjectType::CrystalOrange:
+		for (unsigned int i = 0; i < crystalOrangeContexts.size(); i++)
+			drawPBR(crystalOrangeContexts[i], model, crystalOrangeMaterial, glm::vec3(0.0f), 0.0f);
+		break;
 	case ObjectType::Plant:
 		for (unsigned int i = 0; i < plantContexts.size(); i++)
 			drawPBR(plantContexts[i], model, plantMaterial, glm::vec3(0.0f), 0.0f);
@@ -2075,6 +2089,7 @@ void init(GLFWwindow* window)
 
 	loadModelToContexts("../project_assets/cave/source/GRUTA_BASE.OBJ", caveContexts);
 	loadCrystalModelToContexts("../project_assets/cristal/cristal.obj", crystalContexts);
+	loadCrystalModelToContexts("../project_assets/cristal/crystal_orange.obj", crystalOrangeContexts);
 	loadModelToContexts("../project_assets/plant_1/source/anemone on reef L.glb", plantContexts);
 	loadModelToContexts("../project_assets/seaweed_grass/source/seaweed02.fbx", seaweedGrassContexts);
 	loadModelToContexts("../project_assets/seaweed_pink/seaweed_asset.glb", seaweedPinkContexts);
@@ -2086,6 +2101,7 @@ void init(GLFWwindow* window)
 	texture::sandAlbedo = createSolidTexture(92, 112, 114);
 	texture::flatNormal = createSolidTexture(128, 128, 255);
 	texture::crystalAlbedo = Core::LoadTexture("../project_assets/cristal/textures/textures/Cristal Base Color.001");
+	texture::crystalOrangeAlbedo = Core::LoadTexture("../project_assets/cristal/crystal+orange/Water_Pool_Light.jpg");
 	texture::plantAlbedo = Core::LoadTexture("../project_assets/plant_1/textures/gltf_embedded_0.jpeg");
 	texture::seaweedGrassAlbedo = Core::LoadTexture("../project_assets/seaweed_grass/textures/seaweed_colour.png");
 	texture::seaweedGrassOpacity = Core::LoadTexture("../project_assets/seaweed_grass/textures/seaweed_opacity.png");
@@ -2093,6 +2109,7 @@ void init(GLFWwindow* window)
 	texture::caveAlbedo = Core::LoadTexture("../project_assets/cave/textures/GRUTA_BASE_defaultMat_BaseColor.png");
 	texture::caveNormal = Core::LoadTexture("../project_assets/cave/textures/GRUTA_BASE_defaultMat_Normal.png");
 	setTextureForModelAsset(texture::crystalAlbedo);
+	setTextureForModelAsset(texture::crystalOrangeAlbedo);
 	setTextureForModelAsset(texture::plantAlbedo);
 	setTextureForModelAsset(texture::seaweedGrassAlbedo);
 	setTextureForModelAsset(texture::seaweedGrassOpacity);
@@ -2108,6 +2125,11 @@ void init(GLFWwindow* window)
 	crystalMaterial.ambientStrength = 2.3f;
 	crystalMaterial.fogDensity = 0.018f;
 	crystalMaterial.fogMax = 0.38f;
+	crystalOrangeMaterial = makeMaterial(texture::crystalOrangeAlbedo, texture::flatNormal, glm::vec3(0.839216f, 0.313725f, 0.874510f), 0.0f, 0.35f, 1.0f);
+	crystalOrangeMaterial.normalStrength = 0.0f;
+	crystalOrangeMaterial.ambientStrength = 1.5f;
+	crystalOrangeMaterial.fogDensity = 0.025f;
+	crystalOrangeMaterial.fogMax = 0.45f;
 	plantMaterial = makeMaterial(texture::plantAlbedo, texture::flatNormal, glm::vec3(1.0f), 0.0f, 0.72f, 1.0f);
 	plantMaterial.normalStrength = 0.0f;
 	plantMaterial.ambientStrength = 2.15f;

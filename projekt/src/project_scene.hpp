@@ -1786,7 +1786,7 @@ void renderSceneToHDR(GLFWwindow* window)
 
 	drawSelectedObjectMarker();
 
-	renderSeaweedField(float(glfwGetTime()));
+	// renderSeaweedField(float(glfwGetTime()));
 	renderTransportCrystalDust(float(glfwGetTime()));
 
 	copySceneForBubbleRefraction();

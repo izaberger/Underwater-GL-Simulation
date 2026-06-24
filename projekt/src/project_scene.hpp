@@ -118,6 +118,8 @@ bool keyFWasDown = false;
 bool keyTabWasDown = false;
 bool keyMWasDown = false;
 bool keyDeleteWasDown = false;
+bool enablePulsatingGlow = false;
+bool keyGWasDown = false;
 
 double lastMouseX = 0.0;
 double lastMouseY = 0.0;
@@ -1371,9 +1373,22 @@ void drawEditableSceneObject(const SceneObject& object)
 	switch (object.type)
 	{
 	case ObjectType::Crystal:
+	{
+		float pulsingGlow = 0.0f;
+		if (enableCrystals) {
+			if (enablePulsatingGlow) {
+				float time = float(glfwGetTime());
+				float phaseOffset = object.position.x * 2.1f + object.position.y * 1.3f + object.position.z * 0.8f;
+				pulsingGlow = 2.5f + 1.2f * std::sinf(time * 1.5f + phaseOffset);
+			}
+			else {
+				pulsingGlow = 2.0f;
+			}
+		}
 		for (unsigned int i = 0; i < crystalContexts.size(); i++)
-			drawPBR(crystalContexts[i], model, crystalMaterial, glm::vec3(1.0f, 0.16f, 0.82f), enableCrystals ? 1.45f : 0.0f);
+			drawPBR(crystalContexts[i], model, crystalMaterial, glm::vec3(1.0f, 0.16f, 0.82f), pulsingGlow);
 		break;
+	}
 	case ObjectType::CrystalOrange:
 		for (unsigned int i = 0; i < crystalOrangeContexts.size(); i++)
 			drawPBR(crystalOrangeContexts[i], model, crystalOrangeMaterial, glm::vec3(0.0f), 0.0f);
@@ -1981,6 +1996,7 @@ void renderGui()
 	ImGui::Begin("GRK underwater");
 	ImGui::Checkbox("Bloom", &enableBloom);
 	ImGui::SliderFloat("Exposure", &bloomExposure, 0.2f, 2.5f);
+	ImGui::Checkbox("Pulsing Glow (G)", &enablePulsatingGlow);
 	ImGui::Checkbox("Bubble A13", &enableBubble);
 	ImGui::SliderFloat("Bubble IOR", &bubbleIOR, 0.92f, 1.35f);
 	ImGui::SliderFloat("Bubble alpha", &bubbleAlpha, 0.15f, 0.85f);
@@ -2049,6 +2065,11 @@ void processInput(GLFWwindow* window)
 
 	if (pressedOnce(window, GLFW_KEY_DELETE, keyDeleteWasDown))
 		deleteSelectedSceneObject();
+	if (pressedOnce(window, GLFW_KEY_G, keyGWasDown))
+		enablePulsatingGlow = !enablePulsatingGlow;
+
+	if (pressedOnce(window, GLFW_KEY_G, keyGWasDown))
+		enablePulsatingGlow = !enablePulsatingGlow;
 
 	if (pressedOnce(window, GLFW_KEY_P, keyPWasDown))
 	{

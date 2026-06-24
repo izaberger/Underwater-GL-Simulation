@@ -108,6 +108,11 @@ float crystalGlow = 3.2f;
 float bubbleIOR = 1.12f;
 float bubbleAlpha = 0.55f;
 float bubbleRefractionStrength = 0.085f;
+const float BUBBLE_HIDDEN_Y = -3.85f;
+const float BUBBLE_EXIT_Y = 4.35f;
+const float BUBBLE_RISE_DURATION = 12.0f;
+bool bubbleLaunchActive = false;
+float bubbleLaunchTime = 0.0f;
 float seaweedStrength = 0.08f;
 float seaweedSpeed = 0.65f;
 glm::vec2 currentDirection = glm::normalize(glm::vec2(0.7f, 0.35f));
@@ -118,6 +123,7 @@ bool keyFWasDown = false;
 bool keyTabWasDown = false;
 bool keyMWasDown = false;
 bool keyDeleteWasDown = false;
+bool keySpaceWasDown = false;
 bool enablePulsatingGlow = false;
 bool keyGWasDown = false;
 
@@ -452,6 +458,39 @@ glm::mat4 bubbleModelMatrix()
 		glm::vec3(0.0f),
 		glm::vec3(0.46f)
 	);
+}
+
+float bubbleLaunchProgress()
+{
+	if (!bubbleLaunchActive)
+		return 0.0f;
+
+	return clampFloat(bubbleLaunchTime / BUBBLE_RISE_DURATION, 0.0f, 1.0f);
+}
+
+glm::vec3 animatedBubblePosition(const SceneObject& object)
+{
+	float t = bubbleLaunchProgress();
+	float eased = t * t * (3.0f - 2.0f * t);
+	glm::vec3 position = object.position;
+	position.y = BUBBLE_HIDDEN_Y + (BUBBLE_EXIT_Y - BUBBLE_HIDDEN_Y) * eased;
+
+	if (bubbleLaunchActive && t > 0.0f && t < 1.0f)
+	{
+		float wobbleFade = 1.0f - 0.35f * t;
+		position.x += std::sinf(t * glm::two_pi<float>() * 1.8f) * 0.09f * wobbleFade;
+		position.z += std::cosf(t * glm::two_pi<float>() * 1.35f) * 0.06f * wobbleFade;
+	}
+
+	return position;
+}
+
+SceneObject renderStateForObject(const SceneObject& object)
+{
+	SceneObject renderObject = object;
+	if (object.type == ObjectType::Bubble)
+		renderObject.position = animatedBubblePosition(object);
+	return renderObject;
 }
 
 glm::mat4 importedSceneObjectMatrix(const SceneObject& object, glm::vec3 importedCenter)
@@ -1368,9 +1407,10 @@ void copySceneForBubbleRefraction()
 
 void drawEditableSceneObject(const SceneObject& object)
 {
-	glm::mat4 model = sceneObjectModelMatrix(object);
+	SceneObject renderObject = renderStateForObject(object);
+	glm::mat4 model = sceneObjectModelMatrix(renderObject);
 
-	switch (object.type)
+	switch (renderObject.type)
 	{
 	case ObjectType::Crystal:
 	{
@@ -1438,7 +1478,8 @@ void drawSelectedObjectMarker()
 
 	selectedSceneObject = std::max(0, std::min(selectedSceneObject, int(sceneObjects.size()) - 1));
 	const SceneObject& object = sceneObjects[selectedSceneObject];
-	glm::vec3 markerPos = object.position + glm::vec3(0.0f, selectedMarkerLift(object), 0.0f);
+	SceneObject renderObject = renderStateForObject(object);
+	glm::vec3 markerPos = renderObject.position + glm::vec3(0.0f, selectedMarkerLift(object), 0.0f);
 	glm::mat4 markerModel = makeModel(markerPos, glm::vec3(0.0f), glm::vec3(0.055f));
 	drawColor(sphereContext, markerModel, glm::vec3(1.0f, 0.92f, 0.18f), 2.2f);
 }
@@ -1990,6 +2031,26 @@ void editSelectedSceneObject(GLFWwindow* window)
 		object.scale *= (1.0f + scaleSpeed);
 }
 
+void startBubbleLaunch()
+{
+	bubbleLaunchActive = true;
+	bubbleLaunchTime = 0.0f;
+	std::cout << "Bubble launch started" << std::endl;
+}
+
+void updateBubbleLaunch()
+{
+	if (!bubbleLaunchActive)
+		return;
+
+	bubbleLaunchTime = std::min(bubbleLaunchTime + deltaTime, BUBBLE_RISE_DURATION);
+	if (bubbleLaunchTime >= BUBBLE_RISE_DURATION)
+	{
+		bubbleLaunchActive = false;
+		bubbleLaunchTime = 0.0f;
+	}
+}
+
 void renderGui()
 {
 	ImGui::SetNextWindowSize(ImVec2(330, 260), ImGuiCond_FirstUseEver);
@@ -2001,6 +2062,13 @@ void renderGui()
 	ImGui::SliderFloat("Bubble IOR", &bubbleIOR, 0.92f, 1.35f);
 	ImGui::SliderFloat("Bubble alpha", &bubbleAlpha, 0.15f, 0.85f);
 	ImGui::SliderFloat("Bubble refract", &bubbleRefractionStrength, 0.0f, 0.22f);
+	float bubbleProgress = bubbleLaunchProgress();
+	if (!bubbleLaunchActive)
+		ImGui::Text("Bubble launch: hidden, SPACE");
+	else if (bubbleProgress < 1.0f)
+		ImGui::Text("Bubble launch: %.0f%%", bubbleProgress * 100.0f);
+	else
+		ImGui::Text("Bubble launch: resetting");
 	ImGui::Separator();
 	if (!sceneObjects.empty())
 	{
@@ -2014,7 +2082,7 @@ void renderGui()
 	ImGui::Text("F/TAB object, arrows move, Shift+Up/Down Y");
 	ImGui::Text("Q/E/R rotate XYZ, Shift reverses, Z/X scale");
 	ImGui::Text("P copy, Del remove, M save");
-	ImGui::Text("C mouse, Ctrl+WASD camera");
+	ImGui::Text("SPACE bubble, C mouse, Ctrl+WASD camera");
 	ImGui::End();
 }
 
@@ -2071,6 +2139,9 @@ void processInput(GLFWwindow* window)
 	if (pressedOnce(window, GLFW_KEY_G, keyGWasDown))
 		enablePulsatingGlow = !enablePulsatingGlow;
 
+	if (!ImGui::GetIO().WantCaptureKeyboard && pressedOnce(window, GLFW_KEY_SPACE, keySpaceWasDown))
+		startBubbleLaunch();
+
 	if (pressedOnce(window, GLFW_KEY_P, keyPWasDown))
 	{
 		if (ctrlDown)
@@ -2086,6 +2157,7 @@ void processInput(GLFWwindow* window)
 		}
 	}
 
+	updateBubbleLaunch();
 	editSelectedSceneObject(window);
 }
 

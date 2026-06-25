@@ -1419,10 +1419,10 @@ void drawEditableSceneObject(const SceneObject& object)
 			if (enablePulsatingGlow) {
 				float time = float(glfwGetTime());
 				float phaseOffset = object.position.x * 2.1f + object.position.y * 1.3f + object.position.z * 0.8f;
-				pulsingGlow = 2.5f + 1.2f * std::sinf(time * 1.5f + phaseOffset);
+				pulsingGlow = 1.0f + 1.0f * std::sinf(time * 0.7f + phaseOffset);
 			}
 			else {
-				pulsingGlow = 2.0f;
+				pulsingGlow = 1.3f;
 			}
 		}
 		for (unsigned int i = 0; i < crystalContexts.size(); i++)

@@ -107,7 +107,9 @@ float bloomExposure = 1.0f;
 float crystalGlow = 3.2f;
 float bubbleIOR = 1.12f;
 float bubbleAlpha = 0.55f;
-float bubbleRefractionStrength = 0.085f;
+float bubbleRefractionStrength = 0.105f;
+float bubbleCubemapStrength = 0.98f;
+float bubbleFresnelStrength = 1.55f;
 const float BUBBLE_HIDDEN_Y = -3.85f;
 const float BUBBLE_EXIT_Y = 4.35f;
 const float BUBBLE_RISE_DURATION = 12.0f;
@@ -1381,6 +1383,8 @@ void drawRefractiveBubble(glm::mat4 modelMatrix)
 	glUniform1f(glGetUniformLocation(programRefract, "ior"), bubbleIOR);
 	glUniform1f(glGetUniformLocation(programRefract, "alphaValue"), bubbleAlpha);
 	glUniform1f(glGetUniformLocation(programRefract, "refractionStrength"), bubbleRefractionStrength);
+	glUniform1f(glGetUniformLocation(programRefract, "cubemapStrength"), bubbleCubemapStrength);
+	glUniform1f(glGetUniformLocation(programRefract, "fresnelStrength"), bubbleFresnelStrength);
 	glUniform2f(glGetUniformLocation(programRefract, "viewportSize"), float(framebufferWidth), float(framebufferHeight));
 	glUniform1i(glGetUniformLocation(programRefract, "skybox"), 0);
 	glUniform1i(glGetUniformLocation(programRefract, "sceneTexture"), 1);
@@ -2062,6 +2066,8 @@ void renderGui()
 	ImGui::SliderFloat("Bubble IOR", &bubbleIOR, 0.92f, 1.35f);
 	ImGui::SliderFloat("Bubble alpha", &bubbleAlpha, 0.15f, 0.85f);
 	ImGui::SliderFloat("Bubble refract", &bubbleRefractionStrength, 0.0f, 0.22f);
+	ImGui::SliderFloat("A13 cubemap", &bubbleCubemapStrength, 0.0f, 1.35f);
+	ImGui::SliderFloat("A13 Fresnel", &bubbleFresnelStrength, 0.2f, 2.4f);
 	float bubbleProgress = bubbleLaunchProgress();
 	if (!bubbleLaunchActive)
 		ImGui::Text("Bubble launch: hidden, SPACE");
@@ -2133,9 +2139,6 @@ void processInput(GLFWwindow* window)
 
 	if (pressedOnce(window, GLFW_KEY_DELETE, keyDeleteWasDown))
 		deleteSelectedSceneObject();
-	if (pressedOnce(window, GLFW_KEY_G, keyGWasDown))
-		enablePulsatingGlow = !enablePulsatingGlow;
-
 	if (pressedOnce(window, GLFW_KEY_G, keyGWasDown))
 		enablePulsatingGlow = !enablePulsatingGlow;
 

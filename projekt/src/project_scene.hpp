@@ -105,6 +105,8 @@ bool mouseLook = true;
 
 float bloomExposure = 1.0f;
 float crystalGlow = 3.2f;
+const glm::vec3 CRYSTAL_BASE_COLOR = glm::vec3(1.0f, 0.16f, 0.82f);
+const glm::vec3 CRYSTAL_GLOW_COLOR = glm::vec3(0.42f, 0.10f, 0.92f);
 float bubbleIOR = 1.12f;
 float bubbleAlpha = 0.55f;
 float bubbleRefractionStrength = 0.105f;
@@ -117,6 +119,8 @@ bool bubbleLaunchActive = false;
 float bubbleLaunchTime = 0.0f;
 float seaweedStrength = 0.08f;
 float seaweedSpeed = 0.65f;
+float seaweedPinkSwayStrength = 0.045f;
+float seaweedPinkSwaySpeed = 1.05f;
 glm::vec2 currentDirection = glm::normalize(glm::vec2(0.7f, 0.35f));
 
 bool keyCWasDown = false;
@@ -1210,7 +1214,8 @@ void drawDepth(Core::RenderContext& context, glm::mat4 modelMatrix)
 	Core::DrawContext(context);
 }
 
-void drawPBR(Core::RenderContext& context, glm::mat4 modelMatrix, const Material& mat, glm::vec3 emissiveColor, float emissiveStrength)
+void drawPBR(Core::RenderContext& context, glm::mat4 modelMatrix, const Material& mat, glm::vec3 emissiveColor, float emissiveStrength,
+	bool useVertexWave = false, float wavePhase = 0.0f, float waveStrength = 0.0f, float waveSpeed = 1.0f)
 {
 	glUseProgram(programPBR);
 
@@ -1241,6 +1246,12 @@ void drawPBR(Core::RenderContext& context, glm::mat4 modelMatrix, const Material
 	glUniform1f(glGetUniformLocation(programPBR, "emissiveStrength"), emissiveStrength);
 	glUniform3fv(glGetUniformLocation(programPBR, "fogColor"), 1, (float*)&waterFogColor);
 	glUniform1i(glGetUniformLocation(programPBR, "enableShadows"), enableShadows ? 1 : 0);
+	glUniform1i(glGetUniformLocation(programPBR, "useVertexWave"), useVertexWave ? 1 : 0);
+	glUniform1f(glGetUniformLocation(programPBR, "waveTime"), float(glfwGetTime()));
+	glUniform1f(glGetUniformLocation(programPBR, "waveStrength"), waveStrength);
+	glUniform1f(glGetUniformLocation(programPBR, "waveSpeed"), waveSpeed);
+	glUniform1f(glGetUniformLocation(programPBR, "wavePhase"), wavePhase);
+	glUniform2fv(glGetUniformLocation(programPBR, "waveDirection"), 1, (float*)&currentDirection);
 
 	Core::SetActiveTexture(mat.albedo, "colorTexture", programPBR, 0);
 	Core::SetActiveTexture(mat.normal, "normalMap", programPBR, 1);
@@ -1429,8 +1440,10 @@ void drawEditableSceneObject(const SceneObject& object)
 				pulsingGlow = 1.3f;
 			}
 		}
+		Material crystalWithSwappedColors = crystalMaterial;
+		crystalWithSwappedColors.baseColor = CRYSTAL_BASE_COLOR;
 		for (unsigned int i = 0; i < crystalContexts.size(); i++)
-			drawPBR(crystalContexts[i], model, crystalMaterial, glm::vec3(1.0f, 0.16f, 0.82f), pulsingGlow);
+			drawPBR(crystalContexts[i], model, crystalWithSwappedColors, CRYSTAL_GLOW_COLOR, pulsingGlow);
 		break;
 	}
 	case ObjectType::CrystalOrange:
@@ -1446,9 +1459,13 @@ void drawEditableSceneObject(const SceneObject& object)
 			drawPBR(seaweedGrassContexts[i], model, seaweedGrassMaterial, glm::vec3(0.0f), 0.0f);
 		break;
 	case ObjectType::SeaweedPink:
+	{
+		float wavePhase = renderObject.position.x * 1.7f + renderObject.position.z * 2.3f + renderObject.rotation.y * 0.025f;
 		for (unsigned int i = 0; i < seaweedPinkContexts.size(); i++)
-			drawPBR(seaweedPinkContexts[i], model, seaweedPinkMaterial, glm::vec3(0.22f, 0.02f, 0.18f), 0.22f);
+			drawPBR(seaweedPinkContexts[i], model, seaweedPinkMaterial, glm::vec3(0.22f, 0.02f, 0.18f), 0.22f,
+				true, wavePhase + float(i) * 0.035f, seaweedPinkSwayStrength, seaweedPinkSwaySpeed);
 		break;
+	}
 	case ObjectType::Bubble:
 		if (enableBubble)
 			drawRefractiveBubble(model);

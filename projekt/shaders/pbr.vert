@@ -9,6 +9,12 @@ layout(location = 4) in vec3 vertexBitangent;
 uniform mat4 transformation;
 uniform mat4 modelMatrix;
 uniform mat4 lightSpaceMatrix;
+uniform bool useVertexWave;
+uniform float waveTime;
+uniform float waveStrength;
+uniform float waveSpeed;
+uniform float wavePhase;
+uniform vec2 waveDirection;
 
 out vec3 worldPos;
 out vec2 texCoord;
@@ -17,7 +23,18 @@ out vec4 fragPosLightSpace;
 
 void main()
 {
-	vec4 world = modelMatrix * vec4(vertexPosition, 1.0);
+	vec3 animatedPosition = vertexPosition;
+	if (useVertexWave)
+	{
+		float height01 = clamp(vertexPosition.y * 0.5 + 0.5, 0.0, 1.0);
+		float swayMask = height01 * height01;
+		vec2 dir = normalize(waveDirection + vec2(0.0001, 0.0));
+		float wave = sin(waveTime * waveSpeed + wavePhase + vertexPosition.y * 2.6 + vertexPosition.x * 1.7);
+		float detailWave = sin(waveTime * waveSpeed * 1.37 + wavePhase * 0.73 + vertexPosition.z * 2.1) * 0.35;
+		animatedPosition.xz += dir * (wave + detailWave) * waveStrength * swayMask;
+	}
+
+	vec4 world = modelMatrix * vec4(animatedPosition, 1.0);
 	worldPos = world.xyz;
 	texCoord = vertexTexCoord;
 	fragPosLightSpace = lightSpaceMatrix * world;
@@ -31,5 +48,5 @@ void main()
 		B = normalize(normalMatrix * vertexBitangent);
 
 	TBN = mat3(T, B, N);
-	gl_Position = transformation * vec4(vertexPosition, 1.0);
+	gl_Position = transformation * vec4(animatedPosition, 1.0);
 }

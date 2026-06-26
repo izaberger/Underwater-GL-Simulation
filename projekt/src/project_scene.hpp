@@ -1861,8 +1861,6 @@ void renderSceneToHDR(GLFWwindow* window)
         }
     }
 
-	drawSelectedObjectMarker();
-
 	// renderSeaweedField(float(glfwGetTime()));
 	renderTransportCrystalDust(float(glfwGetTime()));
 
@@ -2148,42 +2146,40 @@ void processInput(GLFWwindow* window)
 			camera.position += camera.up() * calibrationSpeed;
 	}
 
-	if (pressedOnce(window, GLFW_KEY_F, keyFWasDown) || pressedOnce(window, GLFW_KEY_TAB, keyTabWasDown))
-		selectNextSceneObject();
+	float keyboardLookSpeed = 620.0f * deltaTime;
+	float keyboardDx = 0.0f;
+	float keyboardDy = 0.0f;
+	if (glfwGetKey(window, GLFW_KEY_LEFT) == GLFW_PRESS)
+		keyboardDx -= keyboardLookSpeed;
+	if (glfwGetKey(window, GLFW_KEY_RIGHT) == GLFW_PRESS)
+		keyboardDx += keyboardLookSpeed;
+	if (glfwGetKey(window, GLFW_KEY_UP) == GLFW_PRESS)
+		keyboardDy -= keyboardLookSpeed;
+	if (glfwGetKey(window, GLFW_KEY_DOWN) == GLFW_PRESS)
+		keyboardDy += keyboardLookSpeed;
+	if (keyboardDx != 0.0f || keyboardDy != 0.0f)
+		camera.rotate(keyboardDx, keyboardDy);
 
-	if (pressedOnce(window, GLFW_KEY_M, keyMWasDown))
-		saveSceneLayout();
-
-	if (pressedOnce(window, GLFW_KEY_DELETE, keyDeleteWasDown))
-		deleteSelectedSceneObject();
 	if (pressedOnce(window, GLFW_KEY_G, keyGWasDown))
 		enablePulsatingGlow = !enablePulsatingGlow;
 
-	if (!ImGui::GetIO().WantCaptureKeyboard && pressedOnce(window, GLFW_KEY_SPACE, keySpaceWasDown))
+	if (pressedOnce(window, GLFW_KEY_SPACE, keySpaceWasDown))
 		startBubbleLaunch();
 
-	if (pressedOnce(window, GLFW_KEY_P, keyPWasDown))
+	if (ctrlDown && pressedOnce(window, GLFW_KEY_P, keyPWasDown))
 	{
-		if (ctrlDown)
-		{
-			std::cout << "camera.position = glm::vec3("
-				<< camera.position.x << "f, "
-				<< camera.position.y << "f, "
-				<< camera.position.z << "f);" << std::endl;
-		}
-		else
-		{
-			duplicateSelectedSceneObject();
-		}
+		std::cout << "camera.position = glm::vec3("
+			<< camera.position.x << "f, "
+			<< camera.position.y << "f, "
+			<< camera.position.z << "f);" << std::endl;
 	}
 
 	updateBubbleLaunch();
-	editSelectedSceneObject(window);
 }
 
 void mouse_callback(GLFWwindow* window, double xpos, double ypos)
 {
-	if (!mouseLook || ImGui::GetIO().WantCaptureMouse)
+	if (!mouseLook)
 	{
 		firstMouse = true;
 		return;
@@ -2366,17 +2362,9 @@ void renderLoop(GLFWwindow* window)
 		updateDeltaTime(float(glfwGetTime()));
 		processInput(window);
 
-		ImGui_ImplOpenGL3_NewFrame();
-		ImGui_ImplGlfw_NewFrame();
-		ImGui::NewFrame();
-		renderGui();
-
 		renderDepthPass();
 		renderSceneToHDR(window);
 		renderBloomResult();
-
-		ImGui::Render();
-		ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
 
 		glfwSwapBuffers(window);
 		glfwPollEvents();

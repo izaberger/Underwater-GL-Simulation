@@ -38,14 +38,4 @@ Interaktywna aplikacja 3D w C++/OpenGL przedstawiająca podwodną jaskinię w fi
 * **PBR lighting** – Oświetlenie oparte na fizyce (metaliczność/szorstkość) dla kryształów, skał i podłoża.
 * **Normal mapping** – Detale powierzchni ścian jaskini w przestrzeni TBN.
 * **Shadow mapping** – Dynamiczne cienie z filtrowaniem PCF.
-* **PTF (Parallel Transport Frames)** – Płynne poruszanie obiektów po krzywych.
-
-### Efekty Dodatkowe
-* **Post-processing (Bloom)** – Zaawansowane wyodrębnianie jasności (HDR) i rozmycie Gaussowskie, nadające poświatę obiektom emisyjnym.
-* **Distance Fog** – Podwodna mgła dystansowa, budująca klimat głębin.
-
-## Konfiguracja (GUI)
-Aplikacja zawiera panel sterowania ImGui, w którym można w czasie rzeczywistym:
-* Włączać/wyłączać **Bloom** oraz dostosowywać **Exposure**.
-* Sterować parametrami refrakcji bąbelków.
-* Monitorować właściwości wybranego obiektu.
+* **PTF (Parallel Transport Frames)** – Płynne poruszanie obiektów po 

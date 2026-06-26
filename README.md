@@ -57,7 +57,18 @@ Interaktywna aplikacja 3D w C++/OpenGL przedstawiająca podwodną jaskinię w fi
 ### Post-Processing
 * **Bloom (HDR)** – Wyodrębnianie najjaśniejszych elementów sceny (emisja kryształów) do oddzielnego bufora, nakładanie rozmycia Gaussa i łączenie ich ze sceną.
 
+## Budowanie projektu
 
+Projekt został przygotowany w środowisku Visual Studio i korzysta z prekompilowanych bibliotek (GLFW, GLEW, Assimp).
+
+### Wymagania
+* **Visual Studio 2019 / 2022** (Zainstalowany pakiet: *Desktop development with C++*)
+* **Windows SDK**
+
+### Instrukcja uruchomienia
+1. Skolonuj repozytorium na swój komputer:
+   ```bash
+   git clone [https://github.com/TwojaNazwaUzytkownika/Underwater-GL-Simulation.git](https://github.com/TwojaNazwaUzytkownika/Underwater-GL-Simulation.git)
 
 
 

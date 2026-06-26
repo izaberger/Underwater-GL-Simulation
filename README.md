@@ -25,18 +25,18 @@ Interaktywna aplikacja 3D w C++/OpenGL przedstawiająca podwodną jaskinię w fi
 * `Ctrl + W/A/S/D/Q/E` – Ruch kamerą (wspiera poruszanie się w górę/dół/boki).
 * `C` – Przełączanie trybu sterowania myszką (Mouse Look).
 
-### Zarządzanie Sceną (Edytor)
+### Zarządzanie sceną (Edytor)
 * `C` – Przełączanie trybu sterowania (Rozglądanie się myszką / Swobodny kursor do obsługi UI).
 * `Strzałki (← / → / ↑ / ↓)` – Obracanie kamery przy pomocy klawiatury (alternatywa dla myszki).
 * `Ctrl + P` – Wypisanie aktualnej pozycji kamery w konsoli (przydatne do ustalania kadrów).
 
-### Interakcje Specjalne
+### Interakcje specjalne
 * `Space` – Uruchomienie animacji bąbelka.
 * `G` – Włączenie/wyłączenie pulsowania blasku kryształów.
 
-## Zaimplementowane Metody
+## Zaimplementowane metody
 
-### Metody Obowiązkowe
+### Metody obowiązkowe
 * **Normal mapping** – detale powierzchni w przestrzeni.
 * **PBR lighting** – parametry szorstkości i metaliczności materiałów.
 * **Quaternion camera control** – nawigacja bez efektu gimbal lock.
@@ -44,14 +44,14 @@ Interaktywna aplikacja 3D w C++/OpenGL przedstawiająca podwodną jaskinię w fi
 * **Parallel Transport Frames** – stabilna orientacja wzdłuż wyznaczonej krzywej.
 * **Underwater skybox/cubemap** – sześcienna tekstura symulująca odległe otoczenie.
 
-### Metody Wybrane (Z list A i B)
+### Metody zaawansowane
 * **[A13] Environment reflections/refractions** – Refrakcja i załamanie światła na bańkach powietrza z wykorzystaniem tekstury tła.
 * **[B05] Vertex shader waving** – Proceduralnie falujące wodorosty w shaderze wierzchołkowym, symulujące prądy morskie.
 * **[B09] OBJ model loading** – Wczytywanie zewnętrznych modeli (skały, wodorosty, kryształy) przy użyciu biblioteki Assimp.
 * **[B10] Depth fog** – Symulacja gęstości wody i zanikania widoczności proporcjonalnie do odległości.
 * **[B12] Transparency** – Renderowanie obiektów półprzezroczystych (blending z zachowaniem Premultiplied Alpha oraz Depth Mask).
 
-### Metody Dodatkowe / Post-Processing
+### Post-Processing
 * **Bloom (HDR)** – Wyodrębnianie najjaśniejszych elementów sceny (emisja kryształów) do oddzielnego bufora, nakładanie rozmycia Gaussa i łączenie ich ze sceną.
 
 

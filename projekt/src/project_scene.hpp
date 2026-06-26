@@ -1437,15 +1437,26 @@ void drawEditableSceneObject(const SceneObject& object)
 				pulsingGlow = 1.0f + 1.0f * std::sinf(time * 0.7f + phaseOffset);
 			}
 			else {
-				pulsingGlow = 1.3f;
+				pulsingGlow = 0.9f;
 			}
 		}
+
+		glEnable(GL_BLEND);
+    	glBlendFunc(GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
+    	glDepthMask(GL_FALSE);
+
 		Material crystalWithSwappedColors = crystalMaterial;
 		crystalWithSwappedColors.baseColor = CRYSTAL_BASE_COLOR;
+
 		for (unsigned int i = 0; i < crystalContexts.size(); i++)
-			drawPBR(crystalContexts[i], model, crystalWithSwappedColors, CRYSTAL_GLOW_COLOR, pulsingGlow);
+        	drawPBR(crystalContexts[i], model, crystalWithSwappedColors, CRYSTAL_GLOW_COLOR, pulsingGlow);
+
+		glDepthMask(GL_TRUE);
+    	glDisable(GL_BLEND);
+		
 		break;
 	}
+
 	case ObjectType::CrystalOrange:
 		for (unsigned int i = 0; i < crystalOrangeContexts.size(); i++)
 			drawPBR(crystalOrangeContexts[i], model, crystalOrangeMaterial, glm::vec3(0.0f), 0.0f);
@@ -1524,8 +1535,20 @@ void drawSmallCrystal(bool depthOnly, glm::vec3 position, glm::vec3 rotation, gl
     glm::mat4 model = makeModel(position, rotation, scale);
     float glow = enableCrystals ? crystalGlow * glowMultiplier : 0.0f;
     
+    // blending na czas rysowania krysztalow
+    if (!depthOnly) {
+        glEnable(GL_BLEND);
+        glBlendFunc(GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
+        glDepthMask(GL_FALSE);
+    }
+
     for (unsigned int i = 0; i < crystalContexts.size(); i++) {
         drawSceneObject(depthOnly, crystalContexts[i], model, crystalMaterial, glowColor, glow);
+    }
+
+    if (!depthOnly) {
+        glDepthMask(GL_TRUE);
+        glDisable(GL_BLEND);
     }
 }
 

@@ -28,6 +28,7 @@ uniform bool enableShadows;
 uniform bool flipTextureY;
 uniform bool useOpacityTexture;
 uniform float alphaCutoff;
+uniform float crystalAlpha; 
 
 in vec3 worldPos;
 in vec2 texCoord;
@@ -137,9 +138,38 @@ void main()
 	float dist = length(cameraPos - worldPos);
 	float fog = 1.0 - exp(-dist * fogDensity);
 	color = mix(color, fogColor, clamp(fog, 0.0, fogMax));
+	
+	float finalAlpha = 1.0;
+	vec3 finalColor = color;
+	vec3 bloomContrib = vec3(0.0);
 
-	FragColor = vec4(color, 1.0);
+	if (emissiveStrength > 0.0) 
+	{
+		// Fresnel na kontury kryształu 
+		float fresnelEdge = pow(1.0 - max(dot(N, V), 0.0), 3.0);
+		vec3 contour = emissiveColor * fresnelEdge * 2.5; 
+		
+		finalColor += contour;
+		finalAlpha = 0.55; 
+		
+		// czyste swiatlo do emisji bufora
+		bloomContrib = (emissiveColor * emissiveStrength) + contour;
+	}
+	else
+	{
+		// nieswiecace obiekty
+		if (dot(finalColor, vec3(0.2126, 0.7152, 0.0722)) > 1.0)
+			bloomContrib = finalColor;
+	}
 
-	float brightness = dot(color, vec3(0.2126, 0.7152, 0.0722));
-	BrightColor = brightness > 1.0 ? vec4(color, 1.0) : vec4(0.0);
+	// poprawa blendingu
+	FragColor = vec4(finalColor * finalAlpha, finalAlpha);
+
+	if (emissiveStrength > 0.0) {
+		// blask do bufora bloom
+		BrightColor = vec4(bloomContrib, 0.0);
+	} else {
+		// skaly i dno
+		BrightColor = vec4(bloomContrib, 1.0);
+	}
 }

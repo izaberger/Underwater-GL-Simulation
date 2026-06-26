@@ -49,7 +49,7 @@ Interaktywna aplikacja 3D w C++/OpenGL przedstawiająca podwodną jaskinię w fi
 * **[B05] Vertex shader waving** – Proceduralnie falujące wodorosty w shaderze wierzchołkowym, symulujące prądy morskie.
 * **[B09] OBJ model loading** – Wczytywanie zewnętrznych modeli (skały, wodorosty, kryształy) przy użyciu biblioteki Assimp.
 * **[B10] Depth fog** – Symulacja gęstości wody i zanikania widoczności proporcjonalnie do odległości.
-* **[B12] Transparency** – Renderowanie obiektów półprzezroczystych (blending z zachowaniem Premultiplied Alpha oraz Depth Mask).
+* **[B12] Transparency** – Renderowanie obiektów półprzezroczystych (blending).
 
 ### Post-Processing
 * **Bloom (HDR)** – Wyodrębnianie najjaśniejszych elementów sceny (emisja kryształów) do oddzielnego bufora, nakładanie rozmycia Gaussa i łączenie ich ze sceną.

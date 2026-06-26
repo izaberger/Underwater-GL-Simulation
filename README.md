@@ -3,16 +3,20 @@
 ## O projekcie
 Interaktywna aplikacja 3D w C++/OpenGL przedstawiająca podwodną jaskinię w fioletowo-różowej estetyce. Projekt skupia się na zaawansowanym renderingu PBR, efektach post-processingu (Bloom, HDR) oraz dynamicznej manipulacji obiektami w czasie rzeczywistym.
 
-<p align="center">
-  <img src="https://github.com/user-attachments/assets/da46ceda-4361-40af-889b-c55faa1d25d8" alt="Screenshot 1" width="48%" />
-  <img src="https://github.com/user-attachments/assets/a75dc03b-0701-4a80-b1ec-d41b33623d34" alt="Screenshot 2" width="48%" />
-  <br>
-  <img src="https://github.com/user-attachments/assets/c4715117-6e04-40cf-a948-ecdefb37d84c" alt="Screenshot 3" width="48%" />
-  <img src="https://github.com/user-attachments/assets/18469850-e3c9-4db8-aa50-43cef205bf0b" alt="Screenshot 4" width="48%" />
-  <br>
-  <img src="https://github.com/user-attachments/assets/1cfe9e10-aa17-48cc-ae73-8f2655ca1762" alt="Screenshot 7" width="48%" />
-  <img src="https://github.com/user-attachments/assets/c0aa5036-adec-4505-8ac2-5fd0414032c5" alt="Screenshot 6" width="48%" />
-</p>
+<table align="center">
+  <tr>
+    <td><img src="https://github.com/user-attachments/assets/da46ceda-4361-40af-889b-c55faa1d25d8" alt="Screenshot 1"></td>
+    <td><img src="https://github.com/user-attachments/assets/a75dc03b-0701-4a80-b1ec-d41b33623d34" alt="Screenshot 2"></td>
+  </tr>
+  <tr>
+    <td><img src="https://github.com/user-attachments/assets/c4715117-6e04-40cf-a948-ecdefb37d84c" alt="Screenshot 3"></td>
+    <td><img src="https://github.com/user-attachments/assets/18469850-e3c9-4db8-aa50-43cef205bf0b" alt="Screenshot 4"></td>
+  </tr>
+  <tr>
+    <td><img src="https://github.com/user-attachments/assets/8bfe4642-6f0d-46e3-95eb-547c3f116041" alt="Screenshot 5"></td>
+    <td><img src="https://github.com/user-attachments/assets/c0aa5036-adec-4505-8ac2-5fd0414032c5" alt="Screenshot 6"></td>
+  </tr>
+</table>
 
 ## Technologie i Biblioteki
 * **Język:** C++ / GLSL

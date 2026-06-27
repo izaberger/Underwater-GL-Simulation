@@ -46,12 +46,13 @@ void main()
 	vec2 bendDirection = normalize(viewNormal.xy + vec2(0.0001));
 	float normalBend = length(viewNormal.xy);
 	float iorBend = clamp((ior - 1.0) * 1.8, 0.08, 0.42);
-	vec2 bendOffset = bendDirection * normalBend * refractionStrength * iorBend * (0.45 + rim * 1.10);
+	float edgeBend = 0.38 + pow(rim, 1.55) * 2.35;
+	vec2 bendOffset = bendDirection * normalBend * refractionStrength * iorBend * edgeBend;
 	vec2 refractedUv = clamp(screenUv + bendOffset, vec2(0.001), vec2(0.999));
-	vec2 reverseUv = clamp(screenUv - bendOffset * 0.55, vec2(0.001), vec2(0.999));
+	vec2 reverseUv = clamp(screenUv - bendOffset * mix(0.45, 0.86, rim), vec2(0.001), vec2(0.999));
 	vec3 sceneBent = texture(sceneTexture, refractedUv).rgb;
 	vec3 sceneOpposite = texture(sceneTexture, reverseUv).rgb;
-	sceneBent = mix(sceneBent, sceneOpposite, 0.18);
+	sceneBent = mix(sceneBent, sceneOpposite, 0.16 + rim * 0.18);
 
 	vec3 envColor = mix(refracted, reflected, fresnel);
 	vec3 waterShell = fogColor + vec3(0.08, 0.32, 0.38);

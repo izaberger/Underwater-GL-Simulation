@@ -109,7 +109,7 @@ const glm::vec3 CRYSTAL_BASE_COLOR = glm::vec3(1.0f, 0.16f, 0.82f);
 const glm::vec3 CRYSTAL_GLOW_COLOR = glm::vec3(0.42f, 0.10f, 0.92f);
 float bubbleIOR = 1.12f;
 float bubbleAlpha = 0.55f;
-float bubbleRefractionStrength = 0.105f;
+float bubbleRefractionStrength = 0.135f;
 float bubbleCubemapStrength = 0.98f;
 float bubbleFresnelStrength = 1.55f;
 const float BUBBLE_HIDDEN_Y = -3.85f;
@@ -264,8 +264,8 @@ Material seaweedPinkMaterial;
 Material caveMaterial;
 Material groundPlaneMaterial;
 
-glm::vec3 lightPos = glm::vec3(-2.5f, 4.6f, -2.0f);
-glm::vec3 lightColor = glm::vec3(4.0f, 5.2f, 6.8f);
+glm::vec3 lightPos = glm::vec3(0.35f, 3.25f, 5.65f);
+glm::vec3 lightColor = glm::vec3(7.2f, 8.4f, 9.8f);
 glm::vec3 waterFogColor = glm::vec3(0.02f, 0.20f, 0.24f);
 
 float skyboxVertices[] = {
@@ -542,8 +542,8 @@ void initSceneLayout()
 
 glm::mat4 lightSpaceMatrix()
 {
-	glm::mat4 lightProjection = glm::ortho(-11.0f, 11.0f, -8.0f, 8.0f, 1.0f, 24.0f);
-	glm::mat4 lightView = glm::lookAt(lightPos, glm::vec3(0.0f, -0.2f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
+	glm::mat4 lightProjection = glm::ortho(-5.8f, 5.8f, -4.2f, 4.4f, 0.4f, 15.5f);
+	glm::mat4 lightView = glm::lookAt(lightPos, glm::vec3(0.0f, -0.55f, -1.55f), glm::vec3(0.0f, 1.0f, 0.0f));
 	return lightProjection * lightView;
 }
 
@@ -1205,12 +1205,26 @@ glm::mat4 frameMatrix(const PTFrame& frame, glm::vec3 position)
 	return m;
 }
 
-void drawDepth(Core::RenderContext& context, glm::mat4 modelMatrix)
+void drawDepth(Core::RenderContext& context, glm::mat4 modelMatrix, const Material* mat = nullptr,
+	bool useVertexWave = false, float wavePhase = 0.0f, float waveStrength = 0.0f, float waveSpeed = 1.0f)
 {
 	glUseProgram(programDepth);
 	glm::mat4 lightSpace = lightSpaceMatrix();
 	glUniformMatrix4fv(glGetUniformLocation(programDepth, "lightSpaceMatrix"), 1, GL_FALSE, (float*)&lightSpace);
 	glUniformMatrix4fv(glGetUniformLocation(programDepth, "modelMatrix"), 1, GL_FALSE, (float*)&modelMatrix);
+	glUniform1i(glGetUniformLocation(programDepth, "useOpacityTexture"), mat && mat->useOpacityTexture ? 1 : 0);
+	glUniform1f(glGetUniformLocation(programDepth, "textureScale"), mat ? mat->textureScale : 1.0f);
+	glUniform1f(glGetUniformLocation(programDepth, "alphaCutoff"), mat ? mat->alphaCutoff : 0.35f);
+	glUniform1i(glGetUniformLocation(programDepth, "flipTextureY"), mat && mat->flipTextureY ? 1 : 0);
+	glUniform1i(glGetUniformLocation(programDepth, "useVertexWave"), useVertexWave ? 1 : 0);
+	glUniform1f(glGetUniformLocation(programDepth, "waveTime"), float(glfwGetTime()));
+	glUniform1f(glGetUniformLocation(programDepth, "waveStrength"), waveStrength);
+	glUniform1f(glGetUniformLocation(programDepth, "waveSpeed"), waveSpeed);
+	glUniform1f(glGetUniformLocation(programDepth, "wavePhase"), wavePhase);
+	glUniform2fv(glGetUniformLocation(programDepth, "waveDirection"), 1, (float*)&currentDirection);
+	glUniform1i(glGetUniformLocation(programDepth, "opacityTexture"), 0);
+	glActiveTexture(GL_TEXTURE0);
+	glBindTexture(GL_TEXTURE_2D, mat ? mat->opacity : 0);
 	Core::DrawContext(context);
 }
 
@@ -1480,6 +1494,34 @@ void drawEditableSceneObject(const SceneObject& object)
 	case ObjectType::Bubble:
 		if (enableBubble)
 			drawRefractiveBubble(model);
+		break;
+	}
+}
+
+void drawOpeningShadowCaster(const SceneObject& object)
+{
+	SceneObject renderObject = renderStateForObject(object);
+	glm::mat4 model = sceneObjectModelMatrix(renderObject);
+
+	switch (renderObject.type)
+	{
+	case ObjectType::Plant:
+		for (unsigned int i = 0; i < plantContexts.size(); i++)
+			drawDepth(plantContexts[i], model, &plantMaterial);
+		break;
+	case ObjectType::SeaweedGrass:
+		for (unsigned int i = 0; i < seaweedGrassContexts.size(); i++)
+			drawDepth(seaweedGrassContexts[i], model, &seaweedGrassMaterial);
+		break;
+	case ObjectType::SeaweedPink:
+	{
+		float wavePhase = renderObject.position.x * 1.7f + renderObject.position.z * 2.3f + renderObject.rotation.y * 0.025f;
+		for (unsigned int i = 0; i < seaweedPinkContexts.size(); i++)
+			drawDepth(seaweedPinkContexts[i], model, &seaweedPinkMaterial,
+				true, wavePhase + float(i) * 0.035f, seaweedPinkSwayStrength, seaweedPinkSwaySpeed);
+		break;
+	}
+	default:
 		break;
 	}
 }
@@ -1832,6 +1874,14 @@ void renderDepthPass()
 	glViewport(0, 0, SHADOW_WIDTH, SHADOW_HEIGHT);
 	glBindFramebuffer(GL_FRAMEBUFFER, depthMapFBO);
 	glClear(GL_DEPTH_BUFFER_BIT);
+
+	glEnable(GL_DEPTH_TEST);
+	glDisable(GL_BLEND);
+	glDisable(GL_CULL_FACE);
+
+	for (unsigned int i = 0; i < sceneObjects.size(); i++)
+		drawOpeningShadowCaster(sceneObjects[i]);
+
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
 }
 

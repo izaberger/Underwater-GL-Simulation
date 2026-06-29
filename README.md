@@ -10,7 +10,7 @@ Interaktywna aplikacja 3D w C++/OpenGL przedstawiająca podwodną jaskinię w fi
   </tr>
   <tr>
     <td><img src="https://github.com/user-attachments/assets/c4715117-6e04-40cf-a948-ecdefb37d84c" alt="Screenshot 3"></td>
-    <td><img src="https://github.com/user-attachments/assets/18469850-e3c9-4db8-aa50-43cef205bf0b" alt="Screenshot 4"></td>
+    <td><img src="https://github.com/user-attachments/assets/8e5d7606-aa80-4233-b355-73dd6b9324fe" alt="Screenshot 4 (Shadow Mapping)"></td>
   </tr>
   <tr>
     <td><img src="https://github.com/user-attachments/assets/8bfe4642-6f0d-46e3-95eb-547c3f116041" alt="Screenshot 5"></td>
